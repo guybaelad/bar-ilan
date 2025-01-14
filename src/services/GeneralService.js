@@ -16,17 +16,12 @@ export const uploadFile = async (bucketName, fileKey, fileData) => {
     })
       .then(async (response) => {
         if (!response.ok) {
-          const errorData = await response.json();
-        //   throw new Error(`Upload failed: ${response.status} - ${errorData.message}`);
-        console.log(errorData);
+          throw new Error(`Upload failed: ${response.status} `);
         }
         return response.json();
       })
       .then(async (response) => {
-        const errorData = await response.json();
-
-        console.log(`File uploaded successfully:${response.status} - ${errorData.message}`);
-        return errorData;
+        return true
       })
       .catch((error) => {
         console.error('Error uploading file:', error.message);
