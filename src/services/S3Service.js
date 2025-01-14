@@ -59,16 +59,17 @@ class S3Service {
   async uploadRecording(audioBlob, sessionId) {
     try {
       // Create a presigned URL for the upload
-      const command = new PutObjectCommand({
-        Bucket: this.bucketName,
-        Key: `recordings/${sessionId}.wav`,
-        ContentType: 'audio/wav'
-      });
+      // const command = new PutObjectCommand({
+      //   Bucket: this.bucketName,
+      //   Key: `recordings/${sessionId}.wav`,
+      //   ContentType: 'audio/wav'
+      // });
 
-      const signedUrl = await getSignedUrl(this.client, command, { expiresIn: 3600 });
+      // const signedUrl = await getSignedUrl(this.client, command, { expiresIn: 3600 });
 
       // Use fetch to upload directly to S3 using the presigned URL
-      const response = await fetch(signedUrl, {
+      debugger;
+      const response = await fetch(`http://ec2-98-80-128-151.compute-1.amazonaws.com:8000/api/v1/s3/upload`, {
         method: 'PUT',
         body: audioBlob,
         headers: {

@@ -12,6 +12,7 @@ import DictionaryEditor from './services/DictionaryEditor'
 import { GetObjectCommand } from '@aws-sdk/client-s3'
 import TextDisplay from './services/TextDisplay'
 import TranscriptionConfig from './components/TranscriptionConfig'
+import {uploadFile} from './services/GeneralService'
 
 const MedicalTranscription = () => {
   const [isRecording, setIsRecording] = useState(false)
@@ -67,6 +68,14 @@ const MedicalTranscription = () => {
     }
   }
 
+  const fileToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file); // קריאת הקובץ
+      reader.onload = () => resolve(reader.result.split(',')[1]); // מחרוזת Base64 (ללא header)
+      reader.onerror = (error) => reject(error);
+    });
+  };
   const handleAISummary = async () => {
     if (!sessionId) {
       setError('No active session')
@@ -199,8 +208,12 @@ const MedicalTranscription = () => {
         extension: file.name.split('.').pop()
       })
 
+      const fileData = await fileToBase64(file); // הפיכת הקובץ ל-Base64
+
+      const response= await  uploadFile('testtranscriberapp',file.name,fileData)
+
       // Upload file to S3
-      await S3Service.uploadMedia(file, newSessionId)
+      //await S3Service.uploadMedia(file, newSessionId)
 
       // Clear file input
       if (fileInputRef.current) {
@@ -211,7 +224,7 @@ const MedicalTranscription = () => {
       console.log('Starting transcription polling for session:', newSessionId)
 
       // Start loading the transcription
-      await loadTranscription(newSessionId)
+     // await loadTranscription(newSessionId)
     } catch (error) {
       console.error('Error handling file:', error)
       setError('Failed to process file: ' + error.message)
