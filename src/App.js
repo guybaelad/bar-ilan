@@ -16,6 +16,7 @@ import { uploadFile, TranscribeFile, getFile, cleanText, summarize } from './ser
 import LoaderButton from "./components/LoaderButton";
 
 const MedicalTranscription = () => {
+  const [audioUrl, setAudioUrl] = useState(null);
   const [isRecording, setIsRecording] = useState(false)
   const [transcription, setTranscription] = useState('')
   const [error, setError] = useState('')
@@ -86,19 +87,6 @@ const MedicalTranscription = () => {
       setIsProcessingAI(false)
     }
   }
-
-  const fileToBase64_new = (file) => {
-    return new Promise((resolve, reject) => {
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const base64 = reader.result.split(',')[1];
-          return base64;
-        };
-        reader.readAsDataURL(file);
-      }
-    })
-  };
   const fileToBase64 = (file) => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -129,59 +117,6 @@ const MedicalTranscription = () => {
       setIsProcessingAI(false)
     }
   }
-
-  const loadTranscription = async sessionId => {
-    setIsLoadingTranscription(true)
-    setError('')
-
-    try {
-      let attempts = 0
-      const maxAttempts = 120 // 4 minute total (2 second intervals)
-      const pollInterval = 2000
-
-      const pollForTranscription = async () => {
-        try {
-          const transcriptionText = await S3Service.getFirstTranscription(
-            sessionId
-          )
-
-          if (transcriptionText) {
-            setTranscription(transcriptionText)
-            return true
-          }
-          return false
-        } catch (error) {
-          console.log('Polling attempt failed:', error)
-          return false
-        }
-      }
-
-      const poll = async () => {
-        if (attempts >= maxAttempts) {
-          throw new Error('Timeout waiting for transcription')
-        }
-
-        console.log(
-          `Polling attempt ${attempts + 1
-          }/${maxAttempts} for session ${sessionId}`
-        )
-        const found = await pollForTranscription()
-        if (!found) {
-          attempts++
-          await new Promise(resolve => setTimeout(resolve, pollInterval))
-          return poll()
-        }
-      }
-
-      await poll()
-    } catch (error) {
-      console.error('Error loading transcription:', error)
-      setError(`Failed to load transcription: ${error.message}`)
-    } finally {
-      setIsLoadingTranscription(false)
-    }
-  }
-
   const handleFileSelect = async event => {
     debugger;
     const file = event.target.files[0]
@@ -228,9 +163,10 @@ const MedicalTranscription = () => {
     setError('')
 
     try {
-      //  const newSessionId = createSessionId()
-      //  setSessionId(newSessionId)
+       const newSessionId = createSessionId()
+       setSessionId(newSessionId)
       setIsLoading(true);
+      setAudioUrl(null);
 
 
       // Log file information for debugging
@@ -240,8 +176,6 @@ const MedicalTranscription = () => {
         size: file.size,
         extension: file.name.split('.').pop()
       })
-      setTranscription('בדיקות נסיון בדיקות נסיון בדיקות נסיון בדיקות נסיון בדיקות נסיון ')
-
       var fileName = MEDIA_LOAD_FOLDER + file.name
       fileName = fileName.substring(0, fileName.lastIndexOf('.'));
       const fileBase64 = await fileToBase64(file) // הפיכת הקובץ ל-Base64
@@ -249,10 +183,11 @@ const MedicalTranscription = () => {
       if (response) {
         const res = await TranscribeFile(BUCKET_NAME, '', fileName, language, numSpeakers, TRANSCRIPTION_FOLDER)
         if (res) {
-          setTranscribeFilePath(TRANSCRIPTION_FOLDER + res + '.json')
+          setTranscribeFilePath(TRANSCRIPTION_FOLDER + res + '.json');
+          setAudioUrl(URL.createObjectURL(file));
           const response = await getFile(BUCKET_NAME, TRANSCRIPTION_FOLDER + res + '.json')
           if (response) {
-            setTranscription(response)
+            setTranscription(response);
           }
         }
       }
@@ -507,7 +442,7 @@ const MedicalTranscription = () => {
       })
 
       // Create MediaRecorder to save the audio
-      mediaRecorderRef.current = new MediaRecorder(stream)
+      mediaRecorderRef.current = new MediaRecorder(stream, {mimeType: 'audio/webm;codecs=opus'})
       mediaRecorderRef.current.ondataavailable = event => {
         if (event.data.size > 0) {
           recordedChunksRef.current.push(event.data)
@@ -532,75 +467,98 @@ const MedicalTranscription = () => {
   }
 
   const stopRecording = useCallback(async () => {
-    console.log('Stopping recording...')
-    setIsRecording(false)
-    setIsProcessing(true)
+    console.log('Stopping recording...');
 
     try {
+      setIsRecording(false);
+      setIsProcessing(true);
+      setIsLoading(true);
+      setAudioUrl(null);
       if (
-        mediaRecorderRef.current &&
-        mediaRecorderRef.current.state !== 'inactive'
+          mediaRecorderRef.current &&
+          mediaRecorderRef.current.state !== 'inactive'
       ) {
-        mediaRecorderRef.current.stop()
+        mediaRecorderRef.current.stop();
         await new Promise(resolve => {
-          mediaRecorderRef.current.onstop = resolve
-        })
+          mediaRecorderRef.current.onstop = resolve;
+        });
       }
-
-      // Create audio blob from recorded chunks
+      console.log('Recorded chunks:', recordedChunksRef.current);
       if (recordedChunksRef.current.length > 0) {
         const audioBlob = new Blob(recordedChunksRef.current, {
-          type: 'audio/wav'
-        })
+          type: 'audio/webm;codecs=opus',
+        });
 
-        // Upload recording to S3
-        await S3Service.uploadRecording(audioBlob, sessionId)
+        // Создаем URL
+        const audioUrl = URL.createObjectURL(audioBlob);
+        setAudioUrl(audioUrl);
 
-        // Upload transcription to S3
-        await S3Service.uploadTranscription(transcription, sessionId)
+        // Сохраняем или загружаем файл
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          const fileBase64 = reader.result.split(',')[1];
+          const fileName = `${MEDIA_LOAD_FOLDER}audio_${sessionId}.webm`;
 
-        console.log('Successfully saved recording and transcription')
+          try {
+            const response = await uploadFile(BUCKET_NAME, fileName, fileBase64);
+            if (response) {
+              console.log('File uploaded successfully');
+              const res = await TranscribeFile(BUCKET_NAME, '', fileName, language, numSpeakers, TRANSCRIPTION_FOLDER)
+              if (res) {
+                setTranscribeFilePath(TRANSCRIPTION_FOLDER + res + '.json');
+                // const response = await getFile(BUCKET_NAME, TRANSCRIPTION_FOLDER + res + '.json')
+                // if (response) {
+                //   setTranscription(response);
+                // }
+              }
+            }
+            setIsLoading(false);
+          } catch (error) {
+            console.error('Error uploading file:', error);
+          }
+        };
+        reader.readAsDataURL(audioBlob);
       }
     } catch (error) {
-      console.error('Error saving recording:', error)
-      setError('Failed to save recording: ' + error.message)
+      console.error('Error saving recording:', error);
+      setError('Failed to save recording: ' + error.message);
+      setIsLoading(false);
     } finally {
-      // Clean up resources
       if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current)
+        cancelAnimationFrame(animationFrameRef.current);
       }
 
       if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop())
-        streamRef.current = null
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
       }
 
       if (workletNodeRef.current) {
-        workletNodeRef.current.disconnect()
-        workletNodeRef.current = null
+        workletNodeRef.current.disconnect();
+        workletNodeRef.current = null;
       }
 
       if (gainNodeRef.current) {
-        gainNodeRef.current.disconnect()
-        gainNodeRef.current = null
+        gainNodeRef.current.disconnect();
+        gainNodeRef.current = null;
       }
 
       if (analyserRef.current) {
-        analyserRef.current.disconnect()
-        analyserRef.current = null
+        analyserRef.current.disconnect();
+        analyserRef.current = null;
       }
 
       if (audioContextRef.current?.state === 'running') {
-        audioContextRef.current.close()
-        audioContextRef.current = null
+        audioContextRef.current.close();
+        audioContextRef.current = null;
       }
 
-      mediaRecorderRef.current = null
-      recordedChunksRef.current = []
-      setAudioLevel(0)
-      setIsProcessing(false)
+      mediaRecorderRef.current = null;
+      recordedChunksRef.current = [];
+      setAudioLevel(0);
+      setIsProcessing(false);
     }
-  }, [sessionId, transcription])
+  }, [sessionId, transcription]);
 
   return (
     <div className='min-h-screen'>
@@ -739,13 +697,17 @@ const MedicalTranscription = () => {
             </p>
           </div>
         )}
-        {isLoading &&(
-          <LoaderButton
+        <LoaderButton
             maxSeconds={30}
             isLoading={isLoading}
-          />)}
-        {sessionId && !isRecording && (
-          <AudioPlayer
+        />
+        {/*{isLoading &&(*/}
+        {/*  <LoaderButton*/}
+        {/*    maxSeconds={30}*/}
+        {/*    isLoading={isLoading}*/}
+        {/*  />)}*/}
+        {!isRecording && !isProcessing && !isLoading && audioUrl &&  (
+          <AudioPlayer audioUrl={audioUrl}
             sessionId={sessionId}
             recordingType={selectedFileName ? 'upload' : 'recording'}
           />

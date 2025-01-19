@@ -27,6 +27,8 @@ const LoaderButton = ({ maxSeconds, isLoading, onComplete }) => {
     return () => clearInterval(interval); // ניקוי האינטרוול בזמן פריקה
   }, [isLoading, maxSeconds, onComplete]);
 
+  if (!isLoading) return null;
+
   return (
     <div className="flex items-center justify-center gap-4 p-4">
 
