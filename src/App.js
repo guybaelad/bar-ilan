@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react'
+import React, { useState, useRef, useCallback, useEffect } from 'react'
 import {
   TranscribeStreamingClient,
   StartStreamTranscriptionCommand
@@ -10,9 +10,10 @@ import { aiAgentClean, aiAgentSummary } from './services/AgentService'
 import AudioPlayer from './services/AudioPlayer'
 import DictionaryEditor from './services/DictionaryEditor'
 import { GetObjectCommand } from '@aws-sdk/client-s3'
-import TextDisplay from './services/TextDisplay'
+import TextDisplay from './components/TextDisplay/TextDisplay'
 import TranscriptionConfig from './components/TranscriptionConfig'
-import {uploadFile} from './services/GeneralService'
+import { uploadFile, TranscribeFile, getFile, cleanText, summarize } from './services/GeneralService'
+import LoaderButton from "./components/LoaderButton";
 
 const MedicalTranscription = () => {
   const [isRecording, setIsRecording] = useState(false)
@@ -21,6 +22,7 @@ const MedicalTranscription = () => {
   const [isProcessing, setIsProcessing] = useState(false)
   const [audioLevel, setAudioLevel] = useState(0)
   const [uploadingFile, setUploadingFile] = useState(false)
+  const [transcribeFilePath, setTranscribeFilePath] = useState('')
   const [selectedFileName, setSelectedFileName] = useState('')
   const [isLoadingTranscription, setIsLoadingTranscription] = useState(false)
 
@@ -42,8 +44,25 @@ const MedicalTranscription = () => {
 
   const [isProcessingAI, setIsProcessingAI] = useState(false)
 
-  const [numSpeakers, setNumSpeakers] = useState(1)
+  const [numSpeakers, setNumSpeakers] = useState(2)
   const [language, setLanguage] = useState('he-IL')
+  const [base64String, setBase64String] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const BUCKET_NAME = 'testtranscriberapp'
+  const END_DIR_FOLDER = 'ai-summaries/'
+  const TRANSCRIPTION_FOLDER = 'transcriptions/'
+  const CLEANED_FOLDER = 'cleaned/'
+  const MEDIA_LOAD_FOLDER = 'media-loads/'
+  const SUMMARIZE_FOLDER = 'summarize/'
+  const DICTIONARY_FOLDER = 'dictionaries/'
+  var globalfile = ""
+
+  useEffect(() => {
+    if (error !='') {
+      setIsLoading(false); // אם יש שגיאה, הפסיקי את הטעינה
+    }
+  }, [error]);
 
   const handleCleanText = async () => {
     if (!sessionId) {
@@ -58,8 +77,8 @@ const MedicalTranscription = () => {
       const handleProgress = progressText => {
         setTranscription(progressText)
       }
-
-      await aiAgentClean(sessionId, handleProgress)
+      const response = await cleanText(BUCKET_NAME,)
+      //  await aiAgentClean(sessionId, handleProgress)
     } catch (error) {
       console.error('Error cleaning text:', error)
       setError('שגיאה בניקוי הטקסט')
@@ -68,6 +87,18 @@ const MedicalTranscription = () => {
     }
   }
 
+  const fileToBase64_new = (file) => {
+    return new Promise((resolve, reject) => {
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const base64 = reader.result.split(',')[1];
+          return base64;
+        };
+        reader.readAsDataURL(file);
+      }
+    })
+  };
   const fileToBase64 = (file) => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -85,12 +116,12 @@ const MedicalTranscription = () => {
     try {
       setIsProcessingAI(true)
 
-      // Create a progress handler
+      //Create a progress handler
       const handleProgress = progressText => {
         setTranscription(progressText)
       }
 
-      await aiAgentSummary(sessionId, handleProgress)
+      const respone = await summarize(BUCKET_NAME, transcribeFilePath, SUMMARIZE_FOLDER);
     } catch (error) {
       console.error('Error generating summary:', error)
       setError('שגיאה ביצירת סיכום')
@@ -131,8 +162,7 @@ const MedicalTranscription = () => {
         }
 
         console.log(
-          `Polling attempt ${
-            attempts + 1
+          `Polling attempt ${attempts + 1
           }/${maxAttempts} for session ${sessionId}`
         )
         const found = await pollForTranscription()
@@ -153,6 +183,7 @@ const MedicalTranscription = () => {
   }
 
   const handleFileSelect = async event => {
+    debugger;
     const file = event.target.files[0]
     if (!file) return
 
@@ -197,8 +228,10 @@ const MedicalTranscription = () => {
     setError('')
 
     try {
-      const newSessionId = createSessionId()
-      setSessionId(newSessionId)
+      //  const newSessionId = createSessionId()
+      //  setSessionId(newSessionId)
+      setIsLoading(true);
+
 
       // Log file information for debugging
       console.log('Uploading file:', {
@@ -207,10 +240,24 @@ const MedicalTranscription = () => {
         size: file.size,
         extension: file.name.split('.').pop()
       })
+      setTranscription('בדיקות נסיון בדיקות נסיון בדיקות נסיון בדיקות נסיון בדיקות נסיון ')
 
-      const fileData = await fileToBase64(file); // הפיכת הקובץ ל-Base64
-
-      const response= await  uploadFile('testtranscriberapp',file.name,fileData)
+      var fileName = MEDIA_LOAD_FOLDER + file.name
+      fileName = fileName.substring(0, fileName.lastIndexOf('.'));
+      const fileBase64 = await fileToBase64(file) // הפיכת הקובץ ל-Base64
+      const response = await uploadFile(BUCKET_NAME, fileName, fileBase64)
+      if (response) {
+        const res = await TranscribeFile(BUCKET_NAME, '', fileName, language, numSpeakers, TRANSCRIPTION_FOLDER)
+        if (res) {
+          setTranscribeFilePath(TRANSCRIPTION_FOLDER + res + '.json')
+          const response = await getFile(BUCKET_NAME, TRANSCRIPTION_FOLDER + res + '.json')
+          if (response) {
+            setTranscription(response)
+          }
+        }
+      }
+      setUploadingFile(false)
+      setIsLoading(false);
 
       // Upload file to S3
       //await S3Service.uploadMedia(file, newSessionId)
@@ -221,10 +268,10 @@ const MedicalTranscription = () => {
       }
 
       setSelectedFileName(`Uploaded: ${file.name}`)
-      console.log('Starting transcription polling for session:', newSessionId)
+      // console.log('Starting transcription polling for session:', newSessionId)
 
       // Start loading the transcription
-     // await loadTranscription(newSessionId)
+      // await loadTranscription(newSessionId)
     } catch (error) {
       console.error('Error handling file:', error)
       setError('Failed to process file: ' + error.message)
@@ -317,7 +364,7 @@ const MedicalTranscription = () => {
         }
 
         const audioStream = new ReadableStream({
-          start (controller) {
+          start(controller) {
             queueInterval = setInterval(() => {
               if (!isStreaming) {
                 controller.close()
@@ -331,7 +378,7 @@ const MedicalTranscription = () => {
               }
             }, 5) // Reduced interval for faster processing
           },
-          cancel () {
+          cancel() {
             isStreaming = false
             clearInterval(queueInterval)
           }
@@ -575,7 +622,7 @@ const MedicalTranscription = () => {
           >
             <span className='block sm:inline'>{error}</span>
           </div>
-        )}
+        )  }
 
         <TranscriptionConfig
           numSpeakers={numSpeakers}
@@ -640,9 +687,8 @@ const MedicalTranscription = () => {
             />
             <label
               htmlFor='file-upload'
-              className={`btn-primary w-full flex items-center justify-center cursor-pointer ${
-                uploadingFile ? 'opacity-50 cursor-not-allowed' : ''
-              }`}
+              className={`btn-primary w-full flex items-center justify-center cursor-pointer ${uploadingFile ? 'opacity-50 cursor-not-allowed' : ''
+                }`}
             >
               {uploadingFile ? (
                 <span className='flex items-center'>
@@ -693,7 +739,11 @@ const MedicalTranscription = () => {
             </p>
           </div>
         )}
-
+        {isLoading &&(
+          <LoaderButton
+            maxSeconds={30}
+            isLoading={isLoading}
+          />)}
         {sessionId && !isRecording && (
           <AudioPlayer
             sessionId={sessionId}
@@ -706,11 +756,10 @@ const MedicalTranscription = () => {
           <button
             onClick={handleCleanText}
             disabled={!transcription || isProcessingAI}
-            className={`btn-secondary ${
-              !transcription || isProcessingAI
-                ? 'opacity-50 cursor-not-allowed'
-                : ''
-            }`}
+            className={`btn-secondary ${!transcription || isProcessingAI
+              ? 'opacity-50 cursor-not-allowed'
+              : ''
+              }`}
           >
             {isProcessingAI ? (
               <span className='flex items-center justify-center'>
@@ -742,11 +791,10 @@ const MedicalTranscription = () => {
           <button
             onClick={handleAISummary}
             disabled={!transcription || isProcessingAI}
-            className={`btn-secondary ${
-              !transcription || isProcessingAI
-                ? 'opacity-50 cursor-not-allowed'
-                : ''
-            }`}
+            className={`btn-secondary ${!transcription || isProcessingAI
+              ? 'opacity-50 cursor-not-allowed'
+              : ''
+              }`}
           >
             {isProcessingAI ? (
               <span className='flex items-center justify-center'>

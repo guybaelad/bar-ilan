@@ -1,90 +1,19 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
+import React from 'react';
+import {useTextDisplay} from "./useTextDisplay";
 
 const TextDisplay = ({ text, sessionId, direction }) => {
-  const [showCopy, setShowCopy] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const [currentText, setCurrentText] = useState(text);
-  const [textType, setTextType] = useState('original');
-  const contentRef = useRef(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    setCurrentText(text);
-  }, [text]);
-
-  useEffect(() => {
-    if (contentRef.current) {
-      contentRef.current.scrollTop = contentRef.current.scrollHeight;
-    }
-  }, [currentText]);
-
-  const handleCopy = async () => {
-    try {
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = currentText;
-      const textToCopy = tempDiv.textContent || tempDiv.innerText;
-
-      await navigator.clipboard.writeText(textToCopy);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy text:', err);
-    }
-  };
-
-  const fetchTextFromS3 = async (type) => {
-    if (!sessionId) return;
-
-    setIsLoading(true);
-    setError('');
-
-    const s3Client = new S3Client({
-      region: process.env.REACT_APP_AWS_REGION || 'us-east-1',
-      credentials: {
-        accessKeyId: process.env.REACT_APP_AWS_ACCESS_KEY_ID,
-        secretAccessKey: process.env.REACT_APP_AWS_SECRET_ACCESS_KEY
-      }
-    });
-
-    try {
-      const key = type === 'cleaned' 
-        ? `clean-texts/${sessionId}.json`
-        : `ai-summaries/${sessionId}.json`;
-
-      const command = new GetObjectCommand({
-        Bucket: "product.transcriber",
-        Key: key
-      });
-
-      const response = await s3Client.send(command);
-      const reader = response.Body.getReader();
-      const decoder = new TextDecoder('utf-8');
-      let result = '';
-      
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        result += decoder.decode(value, { stream: true });
-      }
-
-      const data = JSON.parse(result);
-      const processedText = type === 'cleaned' ? data.html : data.summary;
-      setCurrentText(processedText?.split('\\n').join('\n') || '');
-      setTextType(type);
-    } catch (error) {
-      console.error(`Error fetching ${type} text:`, error);
-      setError(`Failed to load ${type} text`);
-      setCurrentText(text);
-      setTextType('original');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const {
+      copied,
+      handleCopy,
+      isLoading,
+      currentText, setCurrentText,
+      textType, setTextType,
+      fetchTextFromS3,
+      error, contentRef
+  } = useTextDisplay({text, sessionId});
 
   const baseClasses = "px-4 py-[4px] rounded-[8px] text-xs shadow-[0px_1px_2px_0px_rgba(0,0,0,.5)] hover:bg-slate-50 transition-all duration-300";
-  
+
   return (
     <div className="relative">
       <div className="absolute top-0 left-0 right-0 h-12 flex justify-between items-center px-2 z-10 gap-2 bg-opacity-90">

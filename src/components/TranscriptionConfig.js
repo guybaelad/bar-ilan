@@ -1,18 +1,21 @@
 import React from 'react';
+import NumericInput from './NumericInput';
 
-const TranscriptionConfig = ({ 
-  numSpeakers, 
-  setNumSpeakers, 
-  language, 
+const TranscriptionConfig = ({
+  numSpeakers,
+  setNumSpeakers,
+  language,
   setLanguage,
-  disabled 
+  disabled
 }) => {
   const languages = [
+    { code: null, name: 'אוטומטי' },
     { code: 'he-IL', name: 'עברית' },
-   { code: 'en-US', name: 'English' },
-   { code: 'ar-AE', name: 'العربية' },
-   { code: 'ru-RU', name: 'Русский' }
+    { code: 'en-US', name: 'English' },
+    { code: 'ar-AE', name: 'العربية' },
+    { code: 'ru-RU', name: 'Русский' }
   ];
+  // numSpeakers=2;
 
   return (
     <div className="bg-white p-4 rounded-lg shadow-sm mb-4 border border-[#00280F]">
@@ -21,19 +24,25 @@ const TranscriptionConfig = ({
           <label className="block pt-2  font-medium text-gray-700 text-right">
             מספר דוברים
           </label>
-          <select
+          <NumericInput
+        value={numSpeakers}
+        onChange={setNumSpeakers}
+        min={1}
+        max={30}
+        step={1}
+        disabled={disabled} // הגדר ל-true אם אתה רוצה לבטל את הקלט
+      />
+          {/* <input
+            type="number"
             value={numSpeakers}
             onChange={(e) => setNumSpeakers(Number(e.target.value))}
             disabled={disabled}
+            min={1}
+            max={30}
+            step={1}
             className="block max-w-60 w-full rounded-md border border-gray-300 py-2 px-3 text-right disabled:opacity-50 disabled:cursor-not-allowed"
             dir="rtl"
-          >
-            {[1, 2, 3, 4, 5].map(num => (
-              <option key={num} value={num}>
-                {num === 1 ? 'דובר אחד' : `${num} דוברים`}
-              </option>
-            ))}
-          </select>
+          /> */}
         </div>
 
         <div className="space-y-2 flex flex-row-reverse items-center justify-between md:justify-around">

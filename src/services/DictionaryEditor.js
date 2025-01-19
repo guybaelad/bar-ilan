@@ -63,13 +63,38 @@ const DictionaryEditor = () => {
   const docClient = useMemo(() => DynamoDBDocumentClient.from(ddbClient), [ddbClient]);
 
   const loadDictionary = async () => {
+    debugger;
   setIsLoading(true);
   try {
-    const response = await docClient.send(new ScanCommand({
-      TableName: "transcriber-medical",
-      Select: "ALL_ATTRIBUTES"
-    }));
+    // const response = await docClient.send(new ScanCommand({
+    //   TableName: "transcriber-medical",
+    //   Select: "ALL_ATTRIBUTES"
+    // }));
 
+    const response={Items:[{
+      Phrase: 'סבתא1',
+      SoundsLike: '2סבתא',
+      Ipa: '3סבתא',
+      DisplayAs: '4סבתא'
+    },{
+      Phrase: 'סבא',
+      SoundsLike: 'סבא',
+      Ipa: 'סבא',
+      DisplayAs: 'סבא'
+  },
+    {
+      Phrase: 'אמא',
+      SoundsLike: 'אמא',
+      Ipa: 'אמא',
+      DisplayAs: 'אמא'
+    },
+    {
+      Phrase: 'אבא',
+      SoundsLike: 'אבא',
+      Ipa: 'אבא',
+      DisplayAs: 'אבא'
+    },
+  ]}
     console.log('Response:', response);
     console.log('Items:', response.Items);
 
@@ -138,6 +163,7 @@ const DictionaryEditor = () => {
   };
 
   const filteredAndSortedEntries = useMemo(() => {
+    debugger;
     let result = [...entries];
 
     if (searchTerm) {
@@ -151,6 +177,7 @@ const DictionaryEditor = () => {
 
     if (sortConfig.key) {
       result.sort((a, b) => {
+        debugger;
         if (a[sortConfig.key] < b[sortConfig.key]) {
           return sortConfig.direction === 'asc' ? -1 : 1;
         }
@@ -165,13 +192,13 @@ const DictionaryEditor = () => {
   }, [entries, searchTerm, sortConfig]);
 
   const addNewEntry = async () => {
-  if (newEntry.phrase && newEntry.displayAs) {
+  if (newEntry.Phrase && newEntry.DisplayAs) {
     try {
       const item = {
-        Phrase: newEntry.phrase,
-        SoundsLike: newEntry.soundsLike || '',
-        IPA: newEntry.ipa || '',
-        DisplayAs: newEntry.displayAs
+        Phrase: newEntry.Phrase,
+        SoundsLike: newEntry.SoundsLike || '',
+        IPA: newEntry.Ipa || '',
+        DisplayAs: newEntry.DisplayAs
       };
 
       await docClient.send(new PutCommand({
@@ -181,10 +208,10 @@ const DictionaryEditor = () => {
 
       setEntries([...entries, item]);
       setNewEntry({
-        phrase: '',
-        soundsLike: '',
-        ipa: '',
-        displayAs: ''
+        Phrase: '',
+        SoundsLike: '',
+        Ipa: '',
+        DisplayAs: ''
       });
     } catch (error) {
       console.error('Error:', error);
@@ -257,31 +284,31 @@ const DictionaryEditor = () => {
               <input
                 type="text"
                 placeholder="תיקון"
-                value={newEntry.phrase}
-                onChange={(e) => setNewEntry({ ...newEntry, phrase: e.target.value })}
+                value={newEntry.Phrase}
+                onChange={(e) => setNewEntry({ ...newEntry, Phrase: e.target.value })}
                 className="flex-1 px-4 py-2 border rounded-md text-right"
                 dir="rtl"
               />
               <input
                 type="text"
                 placeholder="נשמע כמו"
-                value={newEntry.soundsLike}
-                onChange={(e) => setNewEntry({ ...newEntry, soundsLike: e.target.value })}
+                value={newEntry.SoundsLike}
+                onChange={(e) => setNewEntry({ ...newEntry, SoundsLike: e.target.value })}
                 className="flex-1 px-4 py-2 border rounded-md text-right"
                 dir="rtl"
               />
               <input
                 type="text"
                 placeholder="IPA"
-                value={newEntry.ipa}
-                onChange={(e) => setNewEntry({ ...newEntry, ipa: e.target.value })}
+                value={newEntry.Ipa}
+                onChange={(e) => setNewEntry({ ...newEntry, Ipa: e.target.value })}
                 className="flex-1 px-4 py-2 border rounded-md"
               />
               <input
                 type="text"
                 placeholder="להציג בתור"
-                value={newEntry.displayAs}
-                onChange={(e) => setNewEntry({ ...newEntry, displayAs: e.target.value })}
+                value={newEntry.DisplayAs}
+                onChange={(e) => setNewEntry({ ...newEntry, DisplayAs: e.target.value })}
                 className="flex-1 px-4 py-2 border rounded-md text-right"
                 dir="rtl"
               />
@@ -300,7 +327,7 @@ const DictionaryEditor = () => {
                     <th className="text-right p-4 border">
                       <button
                         className="flex items-center justify-end w-full"
-                        onClick={() => handleSort('phrase')}
+                        onClick={() => handleSort('Phrase')}
                       >
                         תיקון
                         <SortIcon className="mr-2" />
@@ -309,7 +336,7 @@ const DictionaryEditor = () => {
                     <th className="text-right p-4 border">
                       <button
                         className="flex items-center justify-end w-full"
-                        onClick={() => handleSort('soundsLike')}
+                        onClick={() => handleSort('SoundsLike')}
                       >
                         נשמע כמו
                         <SortIcon className="mr-2" />
@@ -318,7 +345,7 @@ const DictionaryEditor = () => {
                     <th className="text-right p-4 border">
                       <button
                         className="flex items-center justify-end w-full"
-                        onClick={() => handleSort('ipa')}
+                        onClick={() => handleSort('Ipa')}
                       >
                         IPA
                         <SortIcon className="mr-2" />
@@ -327,7 +354,7 @@ const DictionaryEditor = () => {
                     <th className="text-right p-4 border">
                       <button
                         className="flex items-center justify-end w-full"
-                        onClick={() => handleSort('displayAs')}
+                        onClick={() => handleSort('DisplayAs')}
                       >
                         להציג בתור
                         <SortIcon className="mr-2" />
