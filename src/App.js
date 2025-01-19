@@ -489,11 +489,9 @@ const MedicalTranscription = () => {
           type: 'audio/webm;codecs=opus',
         });
 
-        // Создаем URL
         const audioUrl = URL.createObjectURL(audioBlob);
         setAudioUrl(audioUrl);
 
-        // Сохраняем или загружаем файл
         const reader = new FileReader();
         reader.onloadend = async () => {
           const fileBase64 = reader.result.split(',')[1];
