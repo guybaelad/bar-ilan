@@ -1,8 +1,8 @@
-const BASE_URL='http://ec2-98-80-128-151.compute-1.amazonaws.com:8000/api/'
+const BASE_URL='http://98.80.128.151:8000/api/v1/'
 // const BASE_URL='https://98.80.128.151:8443/api/'
 
 export const uploadFile = async (bucketName, fileKey, fileData) => {
-    return fetch(BASE_URL+`v1/s3/upload`, {
+    return fetch(`${BASE_URL}s3/upload`, {
       mode: 'cors',
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -30,7 +30,7 @@ export const uploadFile = async (bucketName, fileKey, fileData) => {
   };
   
   export const getFile = async (bucketName, fileKey) => {
-    return fetch(BASE_URL+`api/v1/s3/get`, {
+    return fetch(BASE_URL+`s3/get`, {
       mode: 'cors',
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -61,7 +61,7 @@ export const uploadFile = async (bucketName, fileKey, fileData) => {
   };
 
   export const TranscribeFile = async (bucketName, fileName,filePath ,lang,numSpeakers,endDir ) => {
-    return fetch(BASE_URL+`api/v1/transcribe`, {
+    return fetch(BASE_URL+`transcribe`, {
       mode: 'cors',
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
