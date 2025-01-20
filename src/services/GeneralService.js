@@ -1,5 +1,5 @@
-const BASE_URL='http://98.80.128.151:8000/api/v1/'
-// const BASE_URL='https://98.80.128.151:8443/api/'
+//const BASE_URL='http://98.80.128.151:8000/api/v1/'
+ const BASE_URL='https://98.80.128.151:8443/api/'
 
 export const uploadFile = async (bucketName, fileKey, fileData) => {
     return fetch(`${BASE_URL}s3/upload`, {
