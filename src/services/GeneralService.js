@@ -96,15 +96,15 @@ export const uploadFile = async (bucketName, fileKey, fileData) => {
       });
   };  
 
-  export const summarize = async (bucketName, inputfileKey,outDir) => {
-    return fetch(BASE_URL+`api/v1/summarize`, {
+  export const summarize = async (bucketName,fileKey="",text="") => {
+    return fetch(BASE_URL+`summarize`, {
       mode: 'cors',
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         bucket_name: bucketName,
-        input_file_key: inputfileKey,
-        output_dir:outDir
+        file_key: fileKey,
+        text:text
       }),
     })
       .then(async (response) => {
@@ -113,11 +113,11 @@ export const uploadFile = async (bucketName, fileKey, fileData) => {
           console.error(`Error fetching file: ${response.status} - ${errorData.message}`);
           throw new Error(`Fetch failed: ${response.status}`);
         }
-        return response.json();
+        return response;
       })
       .then(async(data) => {
-        const jsonObject = JSON.parse(data); // המרה ל-Object
-        const content = jsonObject.details;
+        const jsonObject = await data.json();
+        const content = jsonObject.summarized_text;
         return content; 
       })
       .catch((error) => {
@@ -127,7 +127,7 @@ export const uploadFile = async (bucketName, fileKey, fileData) => {
   };
 
   export const cleanText = async (bucketName, dicKey,txt,txtFilePath) => {
-    return fetch(BASE_URL+`api/v1/summarize`, {
+    return fetch(BASE_URL+`summarize`, {
       mode: 'cors',
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -157,7 +157,7 @@ export const uploadFile = async (bucketName, fileKey, fileData) => {
   }; 
 
   export const transcribeWithDic = async (bucketName, fileKey,numberOfSpeakers,languageCode,endDir,dictionaryKey,dictionaryBucket) => {
-    return fetch(BASE_URL+`api/v1/transcribe`, {
+    return fetch(BASE_URL+`transcribe`, {
       mode: 'cors',
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

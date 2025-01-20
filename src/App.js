@@ -14,6 +14,7 @@ import TextDisplay from './components/TextDisplay/TextDisplay'
 import TranscriptionConfig from './components/TranscriptionConfig'
 import { uploadFile, TranscribeFile, getFile, cleanText, summarize } from './services/GeneralService'
 import LoaderButton from "./components/LoaderButton";
+import Modal from "./components/Modal"
 
 const MedicalTranscription = () => {
   const [isRecording, setIsRecording] = useState(false)
@@ -25,6 +26,8 @@ const MedicalTranscription = () => {
   const [transcribeFilePath, setTranscribeFilePath] = useState('')
   const [selectedFileName, setSelectedFileName] = useState('')
   const [isLoadingTranscription, setIsLoadingTranscription] = useState(false)
+  const [fileContent, setFileContent] = useState('')
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const fileInputRef = useRef(null)
   const [sessionId, setSessionId] = useState(null)
@@ -50,7 +53,7 @@ const MedicalTranscription = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   const BUCKET_NAME = 'testtranscriberapp'
-  const END_DIR_FOLDER = 'ai-summaries/'
+  const END_DIR_FOLDER = 'ai-summarize/'
   const TRANSCRIPTION_FOLDER = 'transcriptions/'
   const CLEANED_FOLDER = 'cleaned/'
   const MEDIA_LOAD_FOLDER = 'media-loads/'
@@ -59,16 +62,18 @@ const MedicalTranscription = () => {
   var globalfile = ""
 
   useEffect(() => {
-    if (error !='') {
+    if (error != '') {
       setIsLoading(false); // אם יש שגיאה, הפסיקי את הטעינה
     }
   }, [error]);
+  const openModal = () => setIsModalOpen(true);
+  const closeModal = () => setIsModalOpen(false);
 
   const handleCleanText = async () => {
-    if (!sessionId) {
-      setError('No active session')
-      return
-    }
+    // if (!sessionId) {
+    //   setError('No active session')
+    //   return
+    // }
 
     try {
       setIsProcessingAI(true)
@@ -77,7 +82,9 @@ const MedicalTranscription = () => {
       const handleProgress = progressText => {
         setTranscription(progressText)
       }
-      const response = await cleanText(BUCKET_NAME,)
+      //const response = await cleanText(BUCKET_NAME,)
+
+      openModal()
       //  await aiAgentClean(sessionId, handleProgress)
     } catch (error) {
       console.error('Error cleaning text:', error)
@@ -107,21 +114,31 @@ const MedicalTranscription = () => {
       reader.onerror = (error) => reject(error);
     });
   };
+
+
+
   const handleAISummary = async () => {
-    if (!sessionId) {
-      setError('No active session')
-      return
-    }
+    // if (!sessionId) {
+    //   setError('No active session')
+    //   return
+    // }
 
     try {
-      setIsProcessingAI(true)
-
+      // setIsProcessingAI(true)
+      setIsLoading(true)
       //Create a progress handler
       const handleProgress = progressText => {
         setTranscription(progressText)
       }
+      if (transcription == '') {
+        setError('יש לטעון קובץ לסיכום')
+        return;
+      }
+      debugger;
+      const response = await summarize(BUCKET_NAME, '', transcription);
+      setTranscription(response)
+      setIsLoading(false);
 
-      const respone = await summarize(BUCKET_NAME, transcribeFilePath, SUMMARIZE_FOLDER);
     } catch (error) {
       console.error('Error generating summary:', error)
       setError('שגיאה ביצירת סיכום')
@@ -182,6 +199,30 @@ const MedicalTranscription = () => {
     }
   }
 
+  const setContentFile = async (file) => {
+    try {
+      if (file) {
+        const reader = new FileReader();
+        // פונקציה שתרוץ כשהקריאה של הקובץ הושלמה
+        reader.onload = () => {
+          // setFileContent(reader.result); // גישה לתוכן הקובץ
+          setTranscription(reader.result); // גישה לתוכן הקובץ
+        };
+        // קריאה של תוכן הקובץ כטקסט
+        reader.readAsText(file)
+        // אפשר לשלוח את האובייקט `file` למקום אחר
+      } else {
+        console.log('No file selected');
+      }
+    }
+    catch (error) {
+
+    }
+  };
+
+
+
+
   const handleFileSelect = async event => {
     debugger;
     const file = event.target.files[0]
@@ -202,7 +243,8 @@ const MedicalTranscription = () => {
       'audio/webm', // WebM audio
       'audio/ogg', // OGG files
       'audio/aac', // AAC files
-      'audio/x-m4a' // Alternative M4A MIME type
+      'audio/x-m4a', // Alternative M4A MIME type
+      'text/plain'
     ]
 
     // Check if file type is directly supported
@@ -218,65 +260,71 @@ const MedicalTranscription = () => {
 
     if (!isSupported) {
       setError(
-        'Please select a supported audio file (MPEG, MP3, WAV, M4A, WebM, OGG, AAC)'
+        'Please select a supported audio file (MPEG, MP3, WAV, M4A, WebM, OGG, AAC,TXT)'
       )
       return
     }
 
     setSelectedFileName(file.name)
-    setUploadingFile(true)
+    // setUploadingFile(true)
     setError('')
-
-    try {
-      //  const newSessionId = createSessionId()
-      //  setSessionId(newSessionId)
-      setIsLoading(true);
-
-
-      // Log file information for debugging
-      console.log('Uploading file:', {
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        extension: file.name.split('.').pop()
-      })
-      setTranscription('בדיקות נסיון בדיקות נסיון בדיקות נסיון בדיקות נסיון בדיקות נסיון ')
-
-      var fileName = MEDIA_LOAD_FOLDER + file.name
-      fileName = fileName.substring(0, fileName.lastIndexOf('.'));
-      const fileBase64 = await fileToBase64(file) // הפיכת הקובץ ל-Base64
-      const response = await uploadFile(BUCKET_NAME, fileName, fileBase64)
-      if (response) {
-        const res = await TranscribeFile(BUCKET_NAME, '', fileName, language, numSpeakers, TRANSCRIPTION_FOLDER)
-        if (res) {
-          setTranscribeFilePath(TRANSCRIPTION_FOLDER + res + '.json')
-          const response = await getFile(BUCKET_NAME, TRANSCRIPTION_FOLDER + res + '.json')
-          if (response) {
-            setTranscription(response)
-          }
-        }
-      }
-      setUploadingFile(false)
+    if (file.type === 'text/plain') {
+      await setContentFile(file)
       setIsLoading(false);
 
-      // Upload file to S3
-      //await S3Service.uploadMedia(file, newSessionId)
+    }
+    else {
 
-      // Clear file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
+      try {
+        //  const newSessionId = createSessionId()
+        //  setSessionId(newSessionId)
+        setIsLoading(true);
+
+
+        // Log file information for debugging
+        console.log('Uploading file:', {
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          extension: file.name.split('.').pop()
+        })
+
+        var fileName = MEDIA_LOAD_FOLDER + file.name
+        fileName = fileName.substring(0, fileName.lastIndexOf('.'));
+        const fileBase64 = await fileToBase64(file) // הפיכת הקובץ ל-Base64
+        const response = await uploadFile(BUCKET_NAME, fileName, fileBase64)
+        if (response) {
+          const res = await TranscribeFile(BUCKET_NAME, '', fileName, language, numSpeakers, TRANSCRIPTION_FOLDER)
+          if (res) {
+            setTranscribeFilePath(TRANSCRIPTION_FOLDER + res + '.json')
+            const response = await getFile(BUCKET_NAME, TRANSCRIPTION_FOLDER + res + '.json')
+            if (response) {
+              setTranscription(response)
+            }
+          }
+        }
+        // setUploadingFile(false)
+        setIsLoading(false);
+
+        // Upload file to S3
+        //await S3Service.uploadMedia(file, newSessionId)
+
+        // Clear file input
+        if (fileInputRef.current) {
+          fileInputRef.current.value = ''
+        }
+
+        setSelectedFileName(`Uploaded: ${file.name}`)
+        // console.log('Starting transcription polling for session:', newSessionId)
+
+        // Start loading the transcription
+        // await loadTranscription(newSessionId)
+      } catch (error) {
+        console.error('Error handling file:', error)
+        setError('Failed to process file: ' + error.message)
+      } finally {
+        setUploadingFile(false)
       }
-
-      setSelectedFileName(`Uploaded: ${file.name}`)
-      // console.log('Starting transcription polling for session:', newSessionId)
-
-      // Start loading the transcription
-      // await loadTranscription(newSessionId)
-    } catch (error) {
-      console.error('Error handling file:', error)
-      setError('Failed to process file: ' + error.message)
-    } finally {
-      setUploadingFile(false)
     }
   }
 
@@ -622,7 +670,7 @@ const MedicalTranscription = () => {
           >
             <span className='block sm:inline'>{error}</span>
           </div>
-        )  }
+        )}
 
         <TranscriptionConfig
           numSpeakers={numSpeakers}
@@ -638,7 +686,7 @@ const MedicalTranscription = () => {
             disabled={!isRecording}
             className='btn-primary'
           >
-            <span className='ml-6'>עצור הקלטה</span>
+            <span className='ml-6'>סיום הקלטה</span>
             <img src='/stop.svg' alt='⏹️' />
           </button>
           <button
@@ -681,7 +729,7 @@ const MedicalTranscription = () => {
               type='file'
               ref={fileInputRef}
               onChange={handleFileSelect}
-              accept='audio/*'
+              accept='audio/*,text/plain'
               className='hidden'
               id='file-upload'
             />
@@ -739,7 +787,7 @@ const MedicalTranscription = () => {
             </p>
           </div>
         )}
-        {isLoading &&(
+        {isLoading && (
           <LoaderButton
             maxSeconds={30}
             isLoading={isLoading}
@@ -783,8 +831,8 @@ const MedicalTranscription = () => {
               </span>
             ) : (
               <div className='flex items-center flex-row-reverse gap-10'>
-                <span>ניקוי טקסט</span>
-                <img src='/trash.svg' alt='🧹' />
+                <span>טיוב טקסט</span>
+                {/* <img src='/trash.svg' alt='🧹' /> */}
               </div>
             )}
           </button>
@@ -833,6 +881,14 @@ const MedicalTranscription = () => {
             direction={language === 'he-IL' || language === 'ar-AE' ? 'rtl' : 'ltr'}
           />
         </div>
+        <Modal
+        isOpen={isModalOpen}
+        onClose={closeModal}
+        title="האם ברצונך לשלוח את הטיוב למייל?"
+      >
+        <p>הזן כתובת מייל</p>
+        <input class="w-full appearance-none rounded-md border border-gray-300 bg-white px-4 py-2 text-right text-gray-700 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200" type="email"  placeholder="example@domain.com" ></input>
+      </Modal>
       </div>
     </div>
   )

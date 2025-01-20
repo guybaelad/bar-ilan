@@ -12,6 +12,20 @@ const TextDisplay = ({ text, sessionId, direction }) => {
       error, contentRef
   } = useTextDisplay({text, sessionId});
 
+  const handleDownload = () => {
+    const blob = new Blob([text], { type: 'text/plain' }); // יצירת קובץ Blob עם תוכן כטקסט
+    const url = URL.createObjectURL(blob); // יצירת URL זמני להורדה
+
+    // יצירת אלמנט לינק להורדה
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'file.txt'; // שם הקובץ שיורד
+    a.click(); // ביצוע ההורדה
+
+    URL.revokeObjectURL(url); // ניקוי ה-URL הזמני
+  };
+
+
   const baseClasses = "px-4 py-[4px] rounded-[8px] text-xs shadow-[0px_1px_2px_0px_rgba(0,0,0,.5)] hover:bg-slate-50 transition-all duration-300";
 
   return (
@@ -40,19 +54,14 @@ const TextDisplay = ({ text, sessionId, direction }) => {
 
           <button
             onClick={() => {
-              if (textType === 'cleaned') {
-                setCurrentText(text);
-                setTextType('original');
-              } else {
-                fetchTextFromS3('cleaned');
-              }
+              handleDownload()
             }}
             className={baseClasses}
-            disabled={isLoading}
+            disabled={currentText ===''}
           >
-            טקסט מנוקה
+            הורדה
           </button>
-
+{/* 
           <button
             onClick={() => {
               if (textType === 'summary') {
@@ -66,7 +75,7 @@ const TextDisplay = ({ text, sessionId, direction }) => {
             disabled={isLoading}
           >
             סיכום
-          </button>
+          </button> */}
         </div>
       </div>
 
