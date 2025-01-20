@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, ScanCommand, PutCommand, DeleteCommand } from "@aws-sdk/lib-dynamodb";
-import{getDictionary} from "./GeneralService"
+import { getDictionary } from "./GeneralService"
 
 const LoadingSpinner = () => (
   <svg className="animate-spin h-5 w-5 mr-3" viewBox="0 0 24 24">
@@ -45,6 +45,7 @@ const DictionaryEditor = () => {
   const [error, setError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [addLine, setAddLine] = useState(false);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
   const [newEntry, setNewEntry] = useState({
     phrase: '',
@@ -53,7 +54,7 @@ const DictionaryEditor = () => {
     displayAs: ''
   });
 
-  
+
   const loadDictionary = async () => {
     debugger;
     setIsLoading(true);
@@ -61,7 +62,7 @@ const DictionaryEditor = () => {
 
     try {
       var resDic = await getDictionary();
-     
+
       console.log('Response:', resDic);
 
       if (resDic?.length) {
@@ -154,6 +155,9 @@ const DictionaryEditor = () => {
 
     return result;
   }, [entries, searchTerm, sortConfig]);
+  const addNewLine =  () => {
+    setAddLine(true);
+  };
 
   const addNewEntry = async () => {
     if (newEntry.Phrase && newEntry.DisplayAs) {
@@ -172,6 +176,7 @@ const DictionaryEditor = () => {
           Ipa: '',
           DisplayAs: ''
         });
+         setAddLine(false);
       } catch (error) {
         console.error('Error:', error);
         setError('שגיאה בהוספת רשומה');
@@ -219,8 +224,15 @@ const DictionaryEditor = () => {
             )}
 
             <div className="flex gap-4 mb-4">
+            <button
+                 onClick={addNewLine}
+                disabled={false}
+                // className="px-4 py-2 bg-[#007e41]text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                className='p-2 bg-[#007e41] text-white rounded-md hover:bg-[#007e4191] disabled:opacity-50 '
+              >
+                הוסף רשומה
+              </button>
               <div className="flex-1 relative">
-                <SearchIcon className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
                 <input
                   type="text"
                   placeholder="חיפוש..."
@@ -233,13 +245,13 @@ const DictionaryEditor = () => {
               <button
                 onClick={saveDictionary}
                 disabled={isSaving}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+                className='p-2 bg-[#007e41] text-white rounded-md hover:bg-[#007e4191] disabled:opacity-50 '
               >
                 {isSaving ? 'שומר...' : 'שמירה'}
               </button>
             </div>
 
-            <div className="flex gap-2 mb-4">
+            {/* <div className="flex gap-2 mb-4">
               <input
                 type="text"
                 placeholder="תיקון"
@@ -277,11 +289,11 @@ const DictionaryEditor = () => {
               >
                 <PlusIcon />
               </button>
-            </div>
+            </div> */}
 
             <div className="flex-1 overflow-auto">
               <table dir='rtl' className="w-full border-collapse table-auto">
-                <thead className="bg-[#0069361e] sticky top-0 z-10">
+                <thead className="bg-[#d2dbd7] sticky top-0 z-10">
                   <tr>
                     <th className="text-right p-3 border-b-2 font-medium text-gray-600">
                       <button
@@ -323,6 +335,59 @@ const DictionaryEditor = () => {
                   </tr>
                 </thead>
                 <tbody>
+                  {addLine &&(
+                  <tr>
+                    <td className="text-right p-3 border-b text-gray-700" dir="rtl">
+                      <input
+                        type="text"
+                        placeholder="תיקון"
+                        value={newEntry.Phrase}
+                        onChange={(e) => setNewEntry({ ...newEntry, Phrase: e.target.value })}
+                        className="flex-1 px-4 py-2 border rounded-md text-right"
+                        dir="rtl"
+                      />
+                    </td>
+                    <td className="text-right p-3 border-b text-gray-700" dir="rtl">
+                      <input
+                        type="text"
+                        placeholder="נשמע כמו"
+                        value={newEntry.SoundsLike}
+                        onChange={(e) => setNewEntry({ ...newEntry, SoundsLike: e.target.value })}
+                        className="flex-1 px-4 py-2 border rounded-md text-right"
+                        dir="rtl"
+                      />
+                    </td>
+                    <td className="text-right p-3 border-b text-gray-700" dir="rtl">
+                      <input
+                        type="text"
+                        placeholder="IPA"
+                        value={newEntry.Ipa}
+                        onChange={(e) => setNewEntry({ ...newEntry, Ipa: e.target.value })}
+                        className="flex-1 px-4 py-2 border rounded-md"
+                      />
+                    </td>
+                    <td className="text-right p-3 border-b text-gray-700" dir="rtl">
+                      <input
+                        type="text"
+                        placeholder="להציג בתור"
+                        value={newEntry.DisplayAs}
+                        onChange={(e) => setNewEntry({ ...newEntry, DisplayAs: e.target.value })}
+                        className="flex-1 px-4 py-2 border rounded-md text-right"
+                        dir="rtl"
+                      />
+                    </td>
+                    <td>
+                    <button
+                          onClick={() => addNewEntry()}
+                          className="p-2 text-red-500 hover:bg-red-100 hover:text-red-700 rounded-full transition-colors"
+                          title="Add entry"
+                        >
+                          <img src='/save.png' alt='delete' className="w-5 h-5" />
+
+                        </button>
+                    </td>
+                  </tr>
+                   )} 
                   {filteredAndSortedEntries.map((entry, index) => (
                     <tr
                       key={index}
@@ -347,7 +412,7 @@ const DictionaryEditor = () => {
                           className="p-2 text-red-500 hover:bg-red-100 hover:text-red-700 rounded-full transition-colors"
                           title="Delete entry"
                         >
-                          <img src='/trash.svg' alt='delete' className="w-5 h-5"/>
+                          <img src='/trash.svg' alt='delete' className="w-5 h-5" />
 
                         </button>
                       </td>

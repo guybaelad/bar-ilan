@@ -91,10 +91,10 @@ const MedicalTranscription = () => {
   };
 
   const handleAISummary = async () => {
-    if (!sessionId) {
-      setError('No active session')
-      return
-    }
+    // if (!sessionId) {
+    //   setError('No active session')
+    //   return
+    // }
 
     try {
       // setIsProcessingAI(true)
