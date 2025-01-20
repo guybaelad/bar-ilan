@@ -163,7 +163,6 @@ const DictionaryEditor = () => {
   };
 
   const filteredAndSortedEntries = useMemo(() => {
-    debugger;
     let result = [...entries];
 
     if (searchTerm) {

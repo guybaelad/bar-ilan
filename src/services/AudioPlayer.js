@@ -1,12 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Play, Pause, RotateCcw } from 'lucide-react';
 
-const AudioPlayer = ({ sessionId, audioUrl, recordingType }) => {
+const AudioPlayer = props => {
+  const { audioUrl, duration: durationCustom } = props;
   const [isPlaying, setIsPlaying] = useState(false);
-  const [duration, setDuration] = useState(0);
+  const [duration, setDuration] = useState(durationCustom ? durationCustom : 0);
   const [currentTime, setCurrentTime] = useState(0);
   const [error, setError] = useState(null);
   const audioRef = useRef(null);
+
+  console.log('duration', props)
 
   useEffect(() => {
     if (audioUrl) {
@@ -45,7 +48,7 @@ const AudioPlayer = ({ sessionId, audioUrl, recordingType }) => {
   };
 
   const handleLoadedMetadata = () => {
-    if (audioRef.current) {
+    if (audioRef.current && !durationCustom) {
       setDuration(audioRef.current.duration);
     }
   };

@@ -61,7 +61,7 @@ const TextDisplay = ({ text, sessionId, direction }) => {
           >
             הורדה
           </button>
-{/* 
+{/*
           <button
             onClick={() => {
               if (textType === 'summary') {
@@ -95,7 +95,7 @@ const TextDisplay = ({ text, sessionId, direction }) => {
         <div
           ref={contentRef}
           dangerouslySetInnerHTML={{ __html: currentText.replace(/\\n/g, '<br/>') }}
-          className={`absolute inset-0 p-4 border-2 border-[#0f341e] rounded-lg focus:outline-none focus:border-blue-500 overflow-auto bg-white`}
+          className={`absolute inset-0 p-4 border-2 border-[#0f341e] rounded-lg focus:outline-none focus:border-blue-500 overflow-y-scroll bg-white`}
           dir={direction}
           style={{
             whiteSpace: 'pre-wrap',

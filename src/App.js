@@ -1,20 +1,13 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react'
-import {
-  TranscribeStreamingClient,
-  StartStreamTranscriptionCommand
-} from '@aws-sdk/client-transcribe-streaming'
-import { FetchHttpHandler } from '@aws-sdk/fetch-http-handler'
-import { Buffer } from 'buffer'
-import S3Service, { createSessionId } from './services/S3Service'
-import { aiAgentClean, aiAgentSummary } from './services/AgentService'
+import { createSessionId } from './services/S3Service'
 import AudioPlayer from './services/AudioPlayer'
 import DictionaryEditor from './services/DictionaryEditor'
-import { GetObjectCommand } from '@aws-sdk/client-s3'
 import TextDisplay from './components/TextDisplay/TextDisplay'
 import TranscriptionConfig from './components/TranscriptionConfig'
 import { uploadFile, TranscribeFile, getFile, cleanText, summarize } from './services/GeneralService'
 import LoaderButton from "./components/LoaderButton";
-import Modal from "./components/Modal"
+import Modal from "./components/Modal";
+import iconWand from './assets/magic-wand.png'
 
 const MedicalTranscription = () => {
   const [audioUrl, setAudioUrl] = useState(null);
@@ -26,17 +19,12 @@ const MedicalTranscription = () => {
   const [uploadingFile, setUploadingFile] = useState(false)
   const [transcribeFilePath, setTranscribeFilePath] = useState('')
   const [selectedFileName, setSelectedFileName] = useState('')
-  const [isLoadingTranscription, setIsLoadingTranscription] = useState(false)
-  const [fileContent, setFileContent] = useState('')
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
+  const [startTime, setStartTime] = useState(0);
+  const [stopTime, setStopTime] = useState(0);
   const fileInputRef = useRef(null)
   const [sessionId, setSessionId] = useState(null)
   const recordedChunksRef = useRef([])
-
-  const partialTranscriptRef = useRef('')
-  const completeTranscriptsRef = useRef([])
-  const currentSpeakerRef = useRef(null)
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const mediaRecorderRef = useRef(null)
   const audioContextRef = useRef(null)
@@ -50,7 +38,6 @@ const MedicalTranscription = () => {
 
   const [numSpeakers, setNumSpeakers] = useState(2)
   const [language, setLanguage] = useState('he-IL')
-  const [base64String, setBase64String] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const BUCKET_NAME = 'testtranscriberapp'
@@ -60,10 +47,10 @@ const MedicalTranscription = () => {
   const MEDIA_LOAD_FOLDER = 'media-loads/'
   const SUMMARIZE_FOLDER = 'summarize/'
   const DICTIONARY_FOLDER = 'dictionaries/'
-  var globalfile = ""
+
 
   useEffect(() => {
-    if (error != '') {
+    if (error !== '') {
       setIsLoading(false); // אם יש שגיאה, הפסיקי את הטעינה
     }
   }, [error]);
@@ -71,10 +58,10 @@ const MedicalTranscription = () => {
   const closeModal = () => setIsModalOpen(false);
 
   const handleCleanText = async () => {
-    // if (!sessionId) {
-    //   setError('No active session')
-    //   return
-    // }
+    if (!sessionId) {
+      setError('No active session')
+      return
+    }
 
     try {
       setIsProcessingAI(true)
@@ -103,13 +90,11 @@ const MedicalTranscription = () => {
     });
   };
 
-
-
   const handleAISummary = async () => {
-    // if (!sessionId) {
-    //   setError('No active session')
-    //   return
-    // }
+    if (!sessionId) {
+      setError('No active session')
+      return
+    }
 
     try {
       // setIsProcessingAI(true)
@@ -118,7 +103,7 @@ const MedicalTranscription = () => {
       const handleProgress = progressText => {
         setTranscription(progressText)
       }
-      if (transcription == '') {
+      if (transcription === '') {
         setError('יש לטעון קובץ לסיכום')
         return;
       }
@@ -155,7 +140,6 @@ const MedicalTranscription = () => {
     }
   };
   const handleFileSelect = async event => {
-    debugger;
     const file = event.target.files[0]
     if (!file) return
 
@@ -196,8 +180,8 @@ const MedicalTranscription = () => {
       return
     }
 
-    setSelectedFileName(file.name)
-    // setUploadingFile(true)
+    setUploadingFile(true)
+    setSelectedFileName('');
     setError('')
     if (file.type === 'text/plain') {
       await setContentFile(file)
@@ -220,15 +204,15 @@ const MedicalTranscription = () => {
         size: file.size,
         extension: file.name.split('.').pop()
       })
-      var fileName = MEDIA_LOAD_FOLDER + file.name
-      fileName = fileName.substring(0, fileName.lastIndexOf('.'));
+      // let fileName = MEDIA_LOAD_FOLDER + file.name
+      const fileName = `${MEDIA_LOAD_FOLDER}audio_${file.name}`;
       const fileBase64 = await fileToBase64(file) // הפיכת הקובץ ל-Base64
+      setAudioUrl(URL.createObjectURL(file));
       const response = await uploadFile(BUCKET_NAME, fileName, fileBase64)
       if (response) {
         const res = await TranscribeFile(BUCKET_NAME, '', fileName, language, numSpeakers, TRANSCRIPTION_FOLDER)
         if (res) {
           setTranscribeFilePath(TRANSCRIPTION_FOLDER + res + '.json');
-          setAudioUrl(URL.createObjectURL(file));
           const response = await getFile(BUCKET_NAME, TRANSCRIPTION_FOLDER + res + '.json')
           if (response) {
             setTranscription(response);
@@ -237,16 +221,16 @@ const MedicalTranscription = () => {
       }
       setUploadingFile(false)
       setIsLoading(false);
+      setSelectedFileName(file.name)
 
-        // Upload file to S3
-        //await S3Service.uploadMedia(file, newSessionId)
+      // Upload file to S3
+      //await S3Service.uploadMedia(file, newSessionId)
 
         // Clear file input
         if (fileInputRef.current) {
           fileInputRef.current.value = ''
         }
 
-        setSelectedFileName(`Uploaded: ${file.name}`)
         // console.log('Starting transcription polling for session:', newSessionId)
 
         // Start loading the transcription
@@ -259,25 +243,6 @@ const MedicalTranscription = () => {
       }
     }
   }
-
-  const transcribeClient = new TranscribeStreamingClient({
-    region: process.env.REACT_APP_AWS_REGION || 'us-east-1',
-    credentials: {
-      accessKeyId: process.env.REACT_APP_AWS_ACCESS_KEY_ID,
-      secretAccessKey: process.env.REACT_APP_AWS_SECRET_ACCESS_KEY
-    },
-    requestHandler: {
-      ...new FetchHttpHandler({
-        requestTimeout: 600000
-      }),
-      metadata: {
-        handlerProtocol: 'h2'
-      }
-    },
-    extraRequestOptions: {
-      duplex: 'half'
-    }
-  })
 
   const initializeAudioContext = useCallback(async () => {
     try {
@@ -309,163 +274,33 @@ const MedicalTranscription = () => {
     }
   }, [])
 
-  const startTranscription = useCallback(
-    async stream => {
-      let isStreaming = true
-      const audioQueue = []
-      let accumulatedBytes = 0
-      let queueInterval
-
-      try {
-        const source = audioContextRef.current.createMediaStreamSource(stream)
-        workletNodeRef.current = new AudioWorkletNode(
+  const updateAudioLevel = useCallback(stream => {
+    {
+      const source = audioContextRef.current.createMediaStreamSource(stream);
+      workletNodeRef.current = new AudioWorkletNode(
           audioContextRef.current,
           'audio-processor'
-        )
+      );
 
-        source.connect(workletNodeRef.current)
+      source.connect(workletNodeRef.current);
 
-        workletNodeRef.current.port.onmessage = event => {
-          if (event.data.audioData) {
-            const audioData = event.data.audioData
-            const stats = event.data.stats
-
-            const buffer = Buffer.allocUnsafe(audioData.length * 2)
-            for (let i = 0; i < audioData.length; i++) {
-              buffer.writeInt16LE(audioData[i], i * 2)
-            }
-
-            if (stats.activeFrames > 0) {
-              audioQueue.push(buffer)
-            }
-
-            setAudioLevel(Math.min(100, event.data.rms * 200))
-          }
+      workletNodeRef.current.port.onmessage = event => {
+        if (event.data.rms !== undefined) {
+          setAudioLevel(Math.min(100, event.data.rms * 200));
         }
+      };
+    }
+  }, [isRecording, language, numSpeakers]);
 
-        const audioStream = new ReadableStream({
-          start(controller) {
-            queueInterval = setInterval(() => {
-              if (!isStreaming) {
-                controller.close()
-                return
-              }
-
-              if (audioQueue.length > 0) {
-                const chunk = audioQueue.shift()
-                controller.enqueue(chunk)
-                accumulatedBytes += chunk.length
-              }
-            }, 5) // Reduced interval for faster processing
-          },
-          cancel() {
-            isStreaming = false
-            clearInterval(queueInterval)
-          }
-        })
-
-        const command = new StartStreamTranscriptionCommand({
-          LanguageCode: language,
-          MediaEncoding: 'pcm',
-          MediaSampleRateHertz: 16000,
-          EnableSpeakerIdentification: numSpeakers > 1,
-          NumberOfParticipants: numSpeakers,
-          ShowSpeakerLabel: numSpeakers > 1,
-          EnablePartialResultsStabilization: true,
-          PartialResultsStability: 'low',
-          VocabularyName: 'transcriber-he-punctuation',
-          AudioStream: (async function* () {
-            const reader = audioStream.getReader()
-            try {
-              while (true) {
-                const { done, value } = await reader.read()
-                if (done) break
-                if (value) {
-                  yield { AudioEvent: { AudioChunk: value } }
-                }
-              }
-            } finally {
-              reader.releaseLock()
-            }
-          })()
-        })
-
-        const response = await transcribeClient.send(command)
-
-        // Initialize state with more efficient handling
-        let currentTranscript = ''
-        let lastPartialTimestamp = Date.now()
-        completeTranscriptsRef.current = []
-
-        for await (const event of response.TranscriptResultStream) {
-          if (event.TranscriptEvent?.Transcript?.Results?.[0]) {
-            const result = event.TranscriptEvent.Transcript.Results[0]
-
-            if (result.Alternatives?.[0]) {
-              const alternative = result.Alternatives[0]
-              const newText = alternative.Transcript || ''
-
-              // Handle speaker labels
-              let speakerLabel = ''
-              if (numSpeakers > 1) {
-                if (alternative.Items?.length > 0) {
-                  const speakerItem = alternative.Items.find(
-                    item => item.Speaker
-                  )
-                  if (speakerItem) {
-                    speakerLabel = `[דובר ${speakerItem.Speaker}]: `
-                  }
-                } else if (result.Speaker) {
-                  speakerLabel = `[דובר ${result.Speaker}]: `
-                }
-              }
-
-              // Update partial results more frequently
-              const now = Date.now()
-              const shouldUpdatePartial = now - lastPartialTimestamp > 100 // Update every 100ms
-
-              if (result.IsPartial) {
-                if (shouldUpdatePartial) {
-                  currentTranscript = newText
-                  lastPartialTimestamp = now
-
-                  // Immediately update UI with partial result
-                  const displayText = [
-                    ...completeTranscriptsRef.current,
-                    speakerLabel + currentTranscript
-                  ]
-                    .filter(Boolean)
-                    .join('\n')
-
-                  setTranscription(displayText)
-                }
-              } else {
-                // For final results
-                completeTranscriptsRef.current.push(speakerLabel + newText)
-                currentTranscript = '' // Reset current transcript
-
-                // Always update UI immediately for final results
-                const displayText = completeTranscriptsRef.current.join('\n')
-                setTranscription(displayText)
-              }
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Transcription error:', error)
-        throw error
-      } finally {
-        clearInterval(queueInterval)
-      }
-    },
-    [isRecording, language, numSpeakers]
-  )
+  const calculateDurationFromTimestamps = (start, stop) => {
+    return (stop - start); // Возвращаем длительность в секундах
+  };
 
   const startRecording = async () => {
     console.log('Starting recording...')
     setError('')
-    setIsProcessing(true)
-
+    setIsProcessing(true);
+    setSelectedFileName('');
     try {
       const initialized = await initializeAudioContext()
       if (!initialized) return
@@ -494,13 +329,13 @@ const MedicalTranscription = () => {
         }
       }
       mediaRecorderRef.current.start()
-
       streamRef.current = stream
       setIsRecording(true)
-      await startTranscription(stream)
+      await updateAudioLevel(stream);
+      setStartTime(Math.floor(new Date().getSeconds()));
     } catch (error) {
       console.error('Recording error:', error)
-      // setError('Failed to start recording: ' + error.message); // Show error in console
+      setError('Failed to start recording: ' + error.message); // Show error in console
     } finally {
       setIsProcessing(false)
     }
@@ -513,12 +348,12 @@ const MedicalTranscription = () => {
 
   const stopRecording = useCallback(async () => {
     console.log('Stopping recording...');
-
+    setStopTime(Math.floor(new Date().getSeconds()));
+    setIsRecording(false);
+    setIsProcessing(true);
+    setIsLoading(true);
+    setAudioUrl(null);
     try {
-      setIsRecording(false);
-      setIsProcessing(true);
-      setIsLoading(true);
-      setAudioUrl(null);
       if (
           mediaRecorderRef.current &&
           mediaRecorderRef.current.state !== 'inactive'
@@ -541,7 +376,6 @@ const MedicalTranscription = () => {
         reader.onloadend = async () => {
           const fileBase64 = reader.result.split(',')[1];
           const fileName = `${MEDIA_LOAD_FOLDER}audio_${sessionId}.webm`;
-
           try {
             const response = await uploadFile(BUCKET_NAME, fileName, fileBase64);
             if (response) {
@@ -549,15 +383,17 @@ const MedicalTranscription = () => {
               const res = await TranscribeFile(BUCKET_NAME, '', fileName, language, numSpeakers, TRANSCRIPTION_FOLDER)
               if (res) {
                 setTranscribeFilePath(TRANSCRIPTION_FOLDER + res + '.json');
-                // const response = await getFile(BUCKET_NAME, TRANSCRIPTION_FOLDER + res + '.json')
-                // if (response) {
-                //   setTranscription(response);
-                // }
+                const response = await getFile(BUCKET_NAME, TRANSCRIPTION_FOLDER + res + '.json')
+                if (response) {
+                  setTranscription(response);
+                }
               }
             }
             setIsLoading(false);
           } catch (error) {
             console.error('Error uploading file:', error);
+            setError('Error uploading file: ' + error.message)
+            setIsLoading(false);
           }
         };
         reader.readAsDataURL(audioBlob);
@@ -624,13 +460,21 @@ const MedicalTranscription = () => {
             <span className='block sm:inline'>{error}</span>
           </div>
         )}
+        {!uploadingFile && selectedFileName && (
+            <div
+                className='bg-[#0069361e] border border-[#006937] text-[#006937] px-4 py-3 rounded relative mb-4 text-right'
+                role='alert'
+            >
+              <span className='block sm:inline ' style={{direction: "rtl", display: "flex"}}>{`הקובץ שהועלה:  ${selectedFileName}`}</span>
+            </div>
+        )}
 
         <TranscriptionConfig
-          numSpeakers={numSpeakers}
-          setNumSpeakers={setNumSpeakers}
-          language={language}
-          setLanguage={setLanguage}
-          disabled={isRecording || isProcessing || uploadingFile}
+            numSpeakers={numSpeakers}
+            setNumSpeakers={setNumSpeakers}
+            language={language}
+            setLanguage={setLanguage}
+            disabled={isRecording || isProcessing || uploadingFile}
         />
 
         <div className='grid grid-cols-2 md:grid-cols-4 gap-4 bg-[#0069361e] rounded-lg mb-2'>
@@ -719,11 +563,6 @@ const MedicalTranscription = () => {
               )}
               <img src='/upload.svg' alt='⬆️' />
             </label>
-            {selectedFileName && (
-              <p className='text-sm text-gray-600 mt-2 text-right break-words'>
-                {selectedFileName}
-              </p>
-            )}
           </div>
         </div>
 
@@ -744,15 +583,10 @@ const MedicalTranscription = () => {
             maxSeconds={30}
             isLoading={isLoading}
         />
-        {/*{isLoading &&(*/}
-        {/*  <LoaderButton*/}
-        {/*    maxSeconds={30}*/}
-        {/*    isLoading={isLoading}*/}
-        {/*  />)}*/}
         {!isRecording && !isProcessing && !isLoading && audioUrl &&  (
-          <AudioPlayer audioUrl={audioUrl}
-            sessionId={sessionId}
-            recordingType={selectedFileName ? 'upload' : 'recording'}
+          <AudioPlayer
+              duration={calculateDurationFromTimestamps(startTime, stopTime)}
+              audioUrl={audioUrl}
           />
         )}
 
@@ -789,7 +623,7 @@ const MedicalTranscription = () => {
             ) : (
               <div className='flex items-center flex-row-reverse gap-10'>
                 <span>טיוב טקסט</span>
-                {/* <img src='/trash.svg' alt='🧹' /> */}
+                 <img src={iconWand} alt="wand" />
               </div>
             )}
           </button>
@@ -844,7 +678,7 @@ const MedicalTranscription = () => {
         title="האם ברצונך לשלוח את הטיוב למייל?"
       >
         <p>הזן כתובת מייל</p>
-        <input class="w-full appearance-none rounded-md border border-gray-300 bg-white px-4 py-2 text-right text-gray-700 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200" type="email"  placeholder="example@domain.com" ></input>
+        <input className="w-full appearance-none rounded-md border border-gray-300 bg-white px-4 py-2 text-right text-gray-700 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200" type="email"  placeholder="example@domain.com" ></input>
       </Modal>
       </div>
     </div>
