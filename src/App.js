@@ -678,7 +678,8 @@ const MedicalTranscription = () => {
         title="האם ברצונך לשלוח את הטיוב למייל?"
       >
         <p>הזן כתובת מייל</p>
-        <input className="w-full appearance-none rounded-md border border-gray-300 bg-white px-4 py-2 text-right text-gray-700 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200" type="email"  placeholder="example@domain.com" ></input>
+        <input className="w-full appearance-none rounded-md border border-gray-300 bg-white px-4 py-2 text-right text-gray-700 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200"
+        type="email" required="true" placeholder="example@domain.com" ></input>
       </Modal>
       </div>
     </div>

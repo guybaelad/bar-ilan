@@ -77,101 +77,126 @@ export const TranscribeFile = async (bucketName, fileName,filePath ,lang,numSpea
   }
 };
 
-  export const summarize = async (bucketName,fileKey="",text="") => {
-    return fetch(BASE_URL+`summarize`, {
-      mode: 'cors',
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        bucket_name: bucketName,
-        file_key: fileKey,
-        text:text
-      }),
+export const summarize = async (bucketName, fileKey = "", text = "") => {
+    return fetch(BASE_URL + `summarize`, {
+        mode: 'cors',
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            bucket_name: bucketName,
+            file_key: fileKey,
+            text: text
+        }),
     })
-      .then(async (response) => {
-        if (!response.ok) {
-          const errorData = await response.json();
-          console.error(`Error fetching file: ${response.status} - ${errorData.message}`);
-          throw new Error(`Fetch failed: ${response.status}`);
-        }
-        return response;
-      })
-      .then(async(data) => {
-        const jsonObject = await data.json();
-        const content = jsonObject.summarized_text;
-        return content; 
-      })
-      .catch((error) => {
-        console.error('Error fetching file:', error.message);
-        throw error;
-      });
-  };
+        .then(async (response) => {
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error(`Error fetching file: ${response.status} - ${errorData.message}`);
+                throw new Error(`Fetch failed: ${response.status}`);
+            }
+            return response;
+        })
+        .then(async (data) => {
+            const jsonObject = await data.json();
+            const content = jsonObject.summarized_text;
+            return content;
+        })
+        .catch((error) => {
+            console.error('Error fetching file:', error.message);
+            throw error;
+        });
+};
 
-  export const cleanText = async (bucketName, dicKey,txt,txtFilePath) => {
-    return fetch(BASE_URL+`summarize`, {
-      mode: 'cors',
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        bucket_name: bucketName,
-        dictionary_key: dicKey,
-        text:txt,
-        text_file_path:txtFilePath
-      }),
+export const cleanText = async (bucketName, dicKey, txt, txtFilePath) => {
+    return fetch(BASE_URL + `summarize`, {
+        mode: 'cors',
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            bucket_name: bucketName,
+            dictionary_key: dicKey,
+            text: txt,
+            text_file_path: txtFilePath
+        }),
     })
-      .then(async (response) => {
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(`Fetch failed: ${response.status}-${errorData.message}`);
-        }
-        return response.json();
-      })
-      .then(async(data) => {
-        const jsonObject = JSON.parse(data); // המרה ל-Object
-        const cleanedText = jsonObject.cleaned_text;
-        return cleanedText; 
-      })
-      .catch((error) => {
-        console.error('Error fetching file:', error.message);
-        throw error;
-      });
-  }; 
+        .then(async (response) => {
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`Fetch failed: ${response.status}-${errorData.message}`);
+            }
+            return response.json();
+        })
+        .then(async (data) => {
+            const jsonObject = JSON.parse(data); // המרה ל-Object
+            const cleanedText = jsonObject.cleaned_text;
+            return cleanedText;
+        })
+        .catch((error) => {
+            console.error('Error fetching file:', error.message);
+            throw error;
+        });
+};
 
-  export const transcribeWithDic = async (bucketName, fileKey,numberOfSpeakers,languageCode,endDir,dictionaryKey,dictionaryBucket) => {
-    return fetch(BASE_URL+`transcribe`, {
-      mode: 'cors',
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        bucket_name: bucketName,
-        file_key: fileKey,
-        number_of_speakers:numberOfSpeakers,
-        language_code:languageCode,
-        end_dir:endDir,
-        dictionary_key:dictionaryKey,
-        dictionary_bucket:dictionaryBucket
-      }),
+export const transcribeWithDic = async (bucketName, fileKey, numberOfSpeakers, languageCode, endDir, dictionaryKey, dictionaryBucket) => {
+    return fetch(BASE_URL + `transcribe`, {
+        mode: 'cors',
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            bucket_name: bucketName,
+            file_key: fileKey,
+            number_of_speakers: numberOfSpeakers,
+            language_code: languageCode,
+            end_dir: endDir,
+            dictionary_key: dictionaryKey,
+            dictionary_bucket: dictionaryBucket
+        }),
     })
-      .then(async (response) => {
-        if (!response.ok) {
-          const errorData = await response.json();
-          console.error(`Error fetching file: ${response.status} - ${errorData.message}`);
-          throw new Error(`Fetch failed: ${response.status}`);
-        }
-        return response.json();
-      })
-      .then(async(data) => {
-        const jsonData = await data.file_content;
-        const jsonObject = JSON.parse(jsonData); // המרה ל-Object
-        const content = jsonObject.job_name;
-        console.log('File fetched successfully:', data);
-        return content; // data.file_content יכיל את תוכן הקובץ במידת הצורך
-      })
-      .catch((error) => {
-        console.error('Error fetching file:', error.message);
-        throw error;
-      });
-  };
+        .then(async (response) => {
+            if (!response.ok) {
+                const errorData = await response.json();
+                console.error(`Error fetching file: ${response.status} - ${errorData.message}`);
+                throw new Error(`Fetch failed: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(async (data) => {
+            const jsonData = await data.file_content;
+            const jsonObject = JSON.parse(jsonData); // המרה ל-Object
+            const content = jsonObject.job_name;
+            console.log('File fetched successfully:', data);
+            return content; // data.file_content יכיל את תוכן הקובץ במידת הצורך
+        })
+        .catch((error) => {
+            console.error('Error fetching file:', error.message);
+            throw error;
+        });
+};
+
+export const getDictionary = async () => {
+    return fetch(BASE_URL + `get-dictionary`, {
+        mode: 'cors',
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+    })
+        .then(async (response) => {
+            if (!response.ok) {
+                const errorData = await response.json();
+                // console.error(`Error getDictionary : ${response.status} - ${response.message}`);
+                throw new Error(`get Dictionary failed: ${response.status}`);
+            }
+            return response
+        })
+        .then(async (data) => {
+
+            const jsonData = await data.json();
 
 
- 
+            console.log('File fetched successfully:', data);
+            return jsonData.dictionary_content;
+        })
+        .catch((error) => {
+            console.error('Error fetching file:', error.message);
+            throw error;
+        });
+};

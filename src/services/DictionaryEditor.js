@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, ScanCommand, PutCommand, DeleteCommand } from "@aws-sdk/lib-dynamodb";
+import{getDictionary} from "./GeneralService"
 
 const LoadingSpinner = () => (
   <svg className="animate-spin h-5 w-5 mr-3" viewBox="0 0 24 24">
@@ -32,8 +33,8 @@ const PlusIcon = () => (
 
 const SortIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M7 15l5 5 5-5"/>
-    <path d="M7 9l5-5 5 5"/>
+    <path d="M7 15l5 5 5-5" />
+    <path d="M7 9l5-5 5 5" />
   </svg>
 );
 
@@ -52,74 +53,39 @@ const DictionaryEditor = () => {
     displayAs: ''
   });
 
-  const ddbClient = useMemo(() => new DynamoDBClient({
-    region: process.env.REACT_APP_AWS_REGION || 'us-east-1',
-    credentials: {
-      accessKeyId: process.env.REACT_APP_AWS_ACCESS_KEY_ID,
-      secretAccessKey: process.env.REACT_APP_AWS_SECRET_ACCESS_KEY
-    }
-  }), []);
-
-  const docClient = useMemo(() => DynamoDBDocumentClient.from(ddbClient), [ddbClient]);
-
+  
   const loadDictionary = async () => {
     debugger;
-  setIsLoading(true);
-  try {
-    // const response = await docClient.send(new ScanCommand({
-    //   TableName: "transcriber-medical",
-    //   Select: "ALL_ATTRIBUTES"
-    // }));
+    setIsLoading(true);
+    setIsEditing(true);
 
-    const response={Items:[{
-      Phrase: 'סבתא1',
-      SoundsLike: '2סבתא',
-      Ipa: '3סבתא',
-      DisplayAs: '4סבתא'
-    },{
-      Phrase: 'סבא',
-      SoundsLike: 'סבא',
-      Ipa: 'סבא',
-      DisplayAs: 'סבא'
-  },
-    {
-      Phrase: 'אמא',
-      SoundsLike: 'אמא',
-      Ipa: 'אמא',
-      DisplayAs: 'אמא'
-    },
-    {
-      Phrase: 'אבא',
-      SoundsLike: 'אבא',
-      Ipa: 'אבא',
-      DisplayAs: 'אבא'
-    },
-  ]}
-    console.log('Response:', response);
-    console.log('Items:', response.Items);
+    try {
+      var resDic = await getDictionary();
+     
+      console.log('Response:', resDic);
 
-    if (response.Items?.length) {
-      setEntries(response.Items);
-      setIsEditing(true);
-    } else {
-      setError('No items found in table');
+      if (resDic?.length) {
+        setEntries(resDic);
+      }
+      //  else {
+      //   setError('No items found in table');
+      // }
+    } catch (error) {
+      console.error('Error:', error);
+      setError('שגיאה בטעינת המילון');
     }
-  } catch (error) {
-    console.error('Error:', error);
-    setError('Error: ' + error.message);
-  }
-  setIsLoading(false);
-};
+    setIsLoading(false);
+  };
 
   const saveDictionary = async () => {
     setIsSaving(true);
     try {
-      await Promise.all(entries.map(entry =>
-        docClient.send(new PutCommand({
-          TableName: "transcriber-medical",
-          Item: entry
-        }))
-      ));
+      // await Promise.all(entries.map(entry =>
+      //   docClient.send(new PutCommand({
+      //     TableName: "transcriber-medical",
+      //     Item: entry
+      //   }))
+      // ));
       setIsEditing(false);
     } catch (error) {
       console.error('Error:', error);
@@ -129,30 +95,29 @@ const DictionaryEditor = () => {
   };
 
   const deleteEntry = async (index) => {
-  const entry = entries[index];
-  try {
-    console.log('Deleting entry:', entry);
+    const entry = entries[index];
+    try {
+      console.log('Deleting entry:', entry);
 
-    await docClient.send(new DeleteCommand({
-      TableName: "transcriber-medical",
-      Key: {
-        Phrase: entry.Phrase,
-        DisplayAs: entry.DisplayAs  // Adding composite key if needed
-      }
-    }));
+      // await docClient.send(new DeleteCommand({
+      //   TableName: "transcriber-medical",
+      //   Key: {
+      //     Phrase: entry.Phrase,
+      //     DisplayAs: entry.DisplayAs  // Adding composite key if needed
+      //   }
+      // }));
 
-    const newEntries = [...entries];
-    newEntries.splice(index, 1);
-    setEntries(newEntries);
-  } catch (error) {
-    console.error('Delete request details:', {
-      tableName: "transcriber-medical",
-      key: entry
-    });
-    console.error('Error:', error);
-    setError('שגיאה במחיקת רשומה');
-  }
-};
+      const newEntries = [...entries];
+      newEntries.splice(index, 1);
+      setEntries(newEntries);
+    } catch (error) {
+      console.error('Delete request details:', {
+        key: entry
+      });
+      console.error('Error:', error);
+      setError('שגיאה במחיקת רשומה');
+    }
+  };
 
   const handleSort = (key) => {
     let direction = 'asc';
@@ -191,33 +156,28 @@ const DictionaryEditor = () => {
   }, [entries, searchTerm, sortConfig]);
 
   const addNewEntry = async () => {
-  if (newEntry.Phrase && newEntry.DisplayAs) {
-    try {
-      const item = {
-        Phrase: newEntry.Phrase,
-        SoundsLike: newEntry.SoundsLike || '',
-        IPA: newEntry.Ipa || '',
-        DisplayAs: newEntry.DisplayAs
-      };
+    if (newEntry.Phrase && newEntry.DisplayAs) {
+      try {
+        const item = {
+          Phrase: newEntry.Phrase,
+          SoundsLike: newEntry.SoundsLike || '',
+          IPA: newEntry.Ipa || '',
+          DisplayAs: newEntry.DisplayAs
+        };
 
-      await docClient.send(new PutCommand({
-        TableName: "transcriber-medical",
-        Item: item
-      }));
-
-      setEntries([...entries, item]);
-      setNewEntry({
-        Phrase: '',
-        SoundsLike: '',
-        Ipa: '',
-        DisplayAs: ''
-      });
-    } catch (error) {
-      console.error('Error:', error);
-      setError('שגיאה בהוספת רשומה');
+        setEntries([...entries, item]);
+        setNewEntry({
+          Phrase: '',
+          SoundsLike: '',
+          Ipa: '',
+          DisplayAs: ''
+        });
+      } catch (error) {
+        console.error('Error:', error);
+        setError('שגיאה בהוספת רשומה');
+      }
     }
-  }
-};
+  };
 
   return (
     <div className="relative">
@@ -234,10 +194,10 @@ const DictionaryEditor = () => {
             </span>
           ) : (
             <div className="flex items-center flex-row-reverse gap-10">
-            <span>עריכת מילון</span>
-            <img src='/edit.svg' alt='✏️'/>
+              <span>עריכת מילון</span>
+              <img src='/edit.svg' alt='✏️' />
             </div>
-)}
+          )}
         </button>
       ) : (
         <div dir="rtl" className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -320,67 +280,83 @@ const DictionaryEditor = () => {
             </div>
 
             <div className="flex-1 overflow-auto">
-              <table className="w-full border-collapse">
-                <thead className="bg-gray-50">
+              <table dir='rtl' className="w-full border-collapse table-auto">
+                <thead className="bg-[#0069361e] sticky top-0 z-10">
                   <tr>
-                    <th className="text-right p-4 border">
+                    <th className="text-right p-3 border-b-2 font-medium text-gray-600">
                       <button
-                        className="flex items-center justify-end w-full"
-                        onClick={() => handleSort('Phrase')}
+                        className="flex items-center   w-full hover:text-gray-800 transition-colors"
+                        onClick={() => handleSort("Phrase")}
                       >
                         תיקון
                         <SortIcon className="mr-2" />
                       </button>
                     </th>
-                    <th className="text-right p-4 border">
+                    <th className="text-right p-3 border-b-2 font-medium text-gray-600">
                       <button
-                        className="flex items-center justify-end w-full"
-                        onClick={() => handleSort('SoundsLike')}
+                        className="flex items-center   w-full hover:text-gray-800 transition-colors"
+                        onClick={() => handleSort("SoundsLike")}
                       >
                         נשמע כמו
                         <SortIcon className="mr-2" />
                       </button>
                     </th>
-                    <th className="text-right p-4 border">
+                    <th className="text-right p-3 border-b-2 font-medium text-gray-600">
                       <button
-                        className="flex items-center justify-end w-full"
-                        onClick={() => handleSort('Ipa')}
+                        className="flex items-center   w-full hover:text-gray-800 transition-colors"
+                        onClick={() => handleSort("Ipa")}
                       >
                         IPA
                         <SortIcon className="mr-2" />
                       </button>
                     </th>
-                    <th className="text-right p-4 border">
-                      <button
-                        className="flex items-center justify-end w-full"
-                        onClick={() => handleSort('DisplayAs')}
+                    <th className="text-right p-3 border-b-2 font-medium text-gray-600">
+                      <button dir='rtl'
+                        className="flex items-center   w-full hover:text-gray-800 transition-colors"
+                        onClick={() => handleSort("DisplayAs")}
                       >
                         להציג בתור
                         <SortIcon className="mr-2" />
                       </button>
                     </th>
-                    <th className="w-[60px] p-4 border"></th>
+                    <th className="w-[60px] p-3 border-b-2"></th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredAndSortedEntries.map((entry, index) => (
-                  <tr key={index} className="hover:bg-gray-50">
-                    <td className="text-right p-4 border" dir="rtl">{entry.Phrase}</td>
-                    <td className="text-right p-4 border" dir="rtl">{entry.SoundsLike || ''}</td>
-                    <td className="text-left p-4 border">{entry.IPA || ''}</td>
-                    <td className="text-right p-4 border" dir="rtl">{entry.DisplayAs}</td>
-                    <td className="p-4 border">
-                      <button
-                        onClick={() => deleteEntry(index)}
-                        className="p-1 text-red-500 hover:text-red-700 rounded"
-                      >
-                        <CloseIcon />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                    <tr
+                      key={index}
+                      className="hover:bg-gray-50 transition-colors text-sm"
+                      style={{ height: "40px" }} // קובע גובה קטן יותר לכל שורה
+                    >
+                      <td className="text-right p-3 border-b text-gray-700" dir="rtl">
+                        {entry.Phrase}
+                      </td>
+                      <td className="text-right p-3 border-b text-gray-700" dir="rtl">
+                        {entry.SoundsLike || ""}
+                      </td>
+                      <td className="text-left p-3 border-b text-gray-700">
+                        {entry.IPA || ""}
+                      </td>
+                      <td className="text-right p-3 border-b text-gray-700" dir="rtl">
+                        {entry.DisplayAs}
+                      </td>
+                      <td className="p-3 border-b text-center">
+                        <button
+                          onClick={() => deleteEntry(index)}
+                          className="p-2 text-red-500 hover:bg-red-100 hover:text-red-700 rounded-full transition-colors"
+                          title="Delete entry"
+                        >
+                          <img src='/trash.svg' alt='delete' className="w-5 h-5"/>
+
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
+
+
             </div>
           </div>
         </div>

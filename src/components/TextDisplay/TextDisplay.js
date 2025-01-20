@@ -19,14 +19,14 @@ const TextDisplay = ({ text, sessionId, direction }) => {
     // יצירת אלמנט לינק להורדה
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'file.txt'; // שם הקובץ שיורד
+    a.download = 'TranscribeFile.txt'; // שם הקובץ שיורד
     a.click(); // ביצוע ההורדה
 
     URL.revokeObjectURL(url); // ניקוי ה-URL הזמני
   };
 
 
-  const baseClasses = "px-4 py-[4px] rounded-[8px] text-xs shadow-[0px_1px_2px_0px_rgba(0,0,0,.5)] hover:bg-slate-50 transition-all duration-300";
+  const baseClasses = " opacity-100 disabled:opacity-50 px-4 py-[4px] rounded-[8px] text-xs shadow-[0px_1px_2px_0px_rgba(0,0,0,.5)] hover:bg-slate-50 transition-all duration-300";
 
   return (
     <div className="relative">
@@ -52,7 +52,7 @@ const TextDisplay = ({ text, sessionId, direction }) => {
             )}
           </button>
 
-          <button
+          <button 
             onClick={() => {
               handleDownload()
             }}
