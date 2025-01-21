@@ -100,23 +100,19 @@ export const summarize = async (bucketName, fileKey = "", text = "") => {
     }
 };
 
-export const cleanTranscribe = async (bucketName, fileName, filePath, transcription) => {
+export const cleanTranscribe = async (bucketName, transcription,fileName="", filePath="") => {
     var url = "";
     try {
-        if (BASE_URL.startsWith("https"))
-            url = `${BASE_URL}clean-trans`;
-        else
-            url = `${BASE_URL}clean-transc`;
+       
 
-        const response = await axios.post(url, {
+        const response = await axios.post(`${BASE_URL}clean-transcription`, {
             bucket_name: bucketName,
-            file_name: fileName,
-            file_path: filePath,
-            transcription:transcription
+            transcription:transcription,
+            file_name:''
         }, { headers: { 'Content-Type': 'application/json' } });
         if (response && response.data) {
             if (response.data.status === "success") {
-                return response.data.cleaned_text;
+                return response.data.clean_text;
             }
             if (response.data.status === "error") {
                 console.error(`Error summarize file: ${response.data.status} `);
@@ -149,3 +145,24 @@ export const getDictionary = async () => {
     }
 };
 
+export const UploadDictionary = async (bucketName, dicArray) => {
+    try {
+        const response = await axios.post(`${BASE_URL}upload-dictionary`, {
+            bucket_name: bucketName,
+            dictionary_content: dicArray
+        }, { headers: { 'Content-Type': 'application/json' } });
+
+        if (response && response.data) {
+            if (response.data.status === "success") {
+                return true;
+            }
+            if (response.data.status === "error") {
+                console.error(`Error UploadDictionary: ${response.data.status} `);
+                throw new Error(`Update Dic failed: ${response.data.status}`);
+            }
+        }
+    } catch (error) {
+        console.error('Error update dic:', error.message);
+        throw error;
+    }
+};

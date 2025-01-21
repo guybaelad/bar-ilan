@@ -9,7 +9,7 @@ const TranscriptionConfig = ({
   disabled
 }) => {
   const languages = [
-    { code: null, name: 'אוטומטי' },
+    { code: 'auto', name: 'אוטומטי' },
     { code: 'he-IL', name: 'עברית' },
     { code: 'en-US', name: 'English' },
     { code: 'ar-AE', name: 'العربية' },

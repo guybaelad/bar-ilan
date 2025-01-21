@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, ScanCommand, PutCommand, DeleteCommand } from "@aws-sdk/lib-dynamodb";
-import { getDictionary } from "./GeneralService"
+import { getDictionary, UploadDictionary } from "./GeneralService"
 
 const LoadingSpinner = () => (
   <svg className="animate-spin h-5 w-5 mr-3" viewBox="0 0 24 24">
@@ -35,6 +35,13 @@ const SortIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M7 15l5 5 5-5" />
     <path d="M7 9l5-5 5 5" />
+  </svg>
+);
+const SaveIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+    <polyline points="17 21 17 13 7 13 7 21" />
+    <polyline points="7 3 7 8 15 8" />
   </svg>
 );
 
@@ -81,13 +88,12 @@ const DictionaryEditor = () => {
   const saveDictionary = async () => {
     setIsSaving(true);
     try {
-      // await Promise.all(entries.map(entry =>
-      //   docClient.send(new PutCommand({
-      //     TableName: "transcriber-medical",
-      //     Item: entry
-      //   }))
-      // ));
-      setIsEditing(false);
+    
+      var res = await UploadDictionary("testtranscriberapp", entries);
+      if(res===true){
+        loadDictionary();
+      }
+      // setIsEditing(false);
     } catch (error) {
       console.error('Error:', error);
       setError('שגיאה בשמירת המילון');
@@ -155,7 +161,7 @@ const DictionaryEditor = () => {
 
     return result;
   }, [entries, searchTerm, sortConfig]);
-  const addNewLine =  () => {
+  const addNewLine = () => {
     setAddLine(true);
   };
 
@@ -176,13 +182,20 @@ const DictionaryEditor = () => {
           Ipa: '',
           DisplayAs: ''
         });
-         setAddLine(false);
+        setAddLine(false);
       } catch (error) {
         console.error('Error:', error);
         setError('שגיאה בהוספת רשומה');
       }
     }
   };
+
+  const onCloseModal = async () => {
+    setNewEntry({ Phrase: '', SoundsLike: '', Ipa: '', DisplayAs: '' });
+    setAddLine(false);
+    setIsEditing(false);
+    setError(false);
+  }
 
   return (
     <div className="relative">
@@ -210,7 +223,9 @@ const DictionaryEditor = () => {
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-medium">עריכת מילון</h3>
               <button
-                onClick={() => setIsEditing(false)}
+                onClick={
+                  onCloseModal
+                }
                 className="p-2 hover:bg-gray-100 rounded-full"
               >
                 <CloseIcon />
@@ -224,8 +239,8 @@ const DictionaryEditor = () => {
             )}
 
             <div className="flex gap-4 mb-4">
-            <button
-                 onClick={addNewLine}
+              <button
+                onClick={addNewLine}
                 disabled={false}
                 // className="px-4 py-2 bg-[#007e41]text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
                 className='p-2 bg-[#007e41] text-white rounded-md hover:bg-[#007e4191] disabled:opacity-50 '
@@ -335,59 +350,60 @@ const DictionaryEditor = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {addLine &&(
-                  <tr>
-                    <td className="text-right p-3 border-b text-gray-700" dir="rtl">
-                      <input
-                        type="text"
-                        placeholder="תיקון"
-                        value={newEntry.Phrase}
-                        onChange={(e) => setNewEntry({ ...newEntry, Phrase: e.target.value })}
-                        className="flex-1 px-4 py-2 border rounded-md text-right"
-                        dir="rtl"
-                      />
-                    </td>
-                    <td className="text-right p-3 border-b text-gray-700" dir="rtl">
-                      <input
-                        type="text"
-                        placeholder="נשמע כמו"
-                        value={newEntry.SoundsLike}
-                        onChange={(e) => setNewEntry({ ...newEntry, SoundsLike: e.target.value })}
-                        className="flex-1 px-4 py-2 border rounded-md text-right"
-                        dir="rtl"
-                      />
-                    </td>
-                    <td className="text-right p-3 border-b text-gray-700" dir="rtl">
-                      <input
-                        type="text"
-                        placeholder="IPA"
-                        value={newEntry.Ipa}
-                        onChange={(e) => setNewEntry({ ...newEntry, Ipa: e.target.value })}
-                        className="flex-1 px-4 py-2 border rounded-md"
-                      />
-                    </td>
-                    <td className="text-right p-3 border-b text-gray-700" dir="rtl">
-                      <input
-                        type="text"
-                        placeholder="להציג בתור"
-                        value={newEntry.DisplayAs}
-                        onChange={(e) => setNewEntry({ ...newEntry, DisplayAs: e.target.value })}
-                        className="flex-1 px-4 py-2 border rounded-md text-right"
-                        dir="rtl"
-                      />
-                    </td>
-                    <td>
-                    <button
+                  {addLine && (
+                    <tr>
+                      <td className="text-right p-3 border-b text-gray-700" dir="rtl">
+                        <input
+                          type="text"
+                          placeholder="תיקון"
+                          value={newEntry.Phrase}
+                          onChange={(e) => setNewEntry({ ...newEntry, Phrase: e.target.value })}
+                          className="flex-1 px-4 py-2 border rounded-md text-right"
+                          dir="rtl"
+                        />
+                      </td>
+                      <td className="text-right p-3 border-b text-gray-700" dir="rtl">
+                        <input
+                          type="text"
+                          placeholder="נשמע כמו"
+                          value={newEntry.SoundsLike}
+                          onChange={(e) => setNewEntry({ ...newEntry, SoundsLike: e.target.value })}
+                          className="flex-1 px-4 py-2 border rounded-md text-right"
+                          dir="rtl"
+                        />
+                      </td>
+                      <td className="text-right p-3 border-b text-gray-700" dir="rtl">
+                        <input
+                          type="text"
+                          placeholder="IPA"
+                          value={newEntry.Ipa}
+                          onChange={(e) => setNewEntry({ ...newEntry, Ipa: e.target.value })}
+                          className="flex-1 px-4 py-2 border rounded-md"
+                        />
+                      </td>
+                      <td className="text-right p-3 border-b text-gray-700" dir="rtl">
+                        <input
+                          type="text"
+                          placeholder="להציג בתור"
+                          value={newEntry.DisplayAs}
+                          onChange={(e) => setNewEntry({ ...newEntry, DisplayAs: e.target.value })}
+                          className="flex-1 px-4 py-2 border rounded-md text-right"
+                          dir="rtl"
+                        />
+                      </td>
+                      <td className='p-3 border-b text-center'>
+                        <button
                           onClick={() => addNewEntry()}
-                          className="p-2 text-red-500 hover:bg-red-100 hover:text-red-700 rounded-full transition-colors"
+                          className="p-2 cursor-pointer rounded-full"
                           title="Add entry"
                         >
-                          <img src='/save.png' alt='delete' className="w-5 h-5" />
+                          {/* <img src='/save.png' alt='delete' className="w-5 h-5" /> */}
+                          <SaveIcon className="w-5 h-5" />
 
                         </button>
-                    </td>
-                  </tr>
-                   )} 
+                      </td>
+                    </tr>
+                  )}
                   {filteredAndSortedEntries.map((entry, index) => (
                     <tr
                       key={index}
@@ -409,7 +425,7 @@ const DictionaryEditor = () => {
                       <td className="p-3 border-b text-center">
                         <button
                           onClick={() => deleteEntry(index)}
-                          className="p-2 text-red-500 hover:bg-red-100 hover:text-red-700 rounded-full transition-colors"
+                          className="p-2 cursor-pointer rounded-full "
                           title="Delete entry"
                         >
                           <img src='/trash.svg' alt='delete' className="w-5 h-5" />

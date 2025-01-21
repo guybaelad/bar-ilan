@@ -4,7 +4,7 @@ import AudioPlayer from './services/AudioPlayer'
 import DictionaryEditor from './services/DictionaryEditor'
 import TextDisplay from './components/TextDisplay/TextDisplay'
 import TranscriptionConfig from './components/TranscriptionConfig'
-import { uploadFile, TranscribeFile, getFile, cleanText, summarize } from './services/GeneralService'
+import { uploadFile, TranscribeFile, getFile, cleanTranscribe, summarize } from './services/GeneralService'
 import LoaderButton from "./components/LoaderButton";
 import Modal from "./components/Modal";
 import iconWand from './assets/magic-wand.png'
@@ -37,7 +37,7 @@ const MedicalTranscription = () => {
   const [isProcessingAI, setIsProcessingAI] = useState(false)
 
   const [numSpeakers, setNumSpeakers] = useState(2)
-  const [language, setLanguage] = useState('he-IL')
+  const [language, setLanguage] = useState('auto')
   const [isLoading, setIsLoading] = useState(false);
 
   const BUCKET_NAME = 'testtranscriberapp'
@@ -51,6 +51,7 @@ const MedicalTranscription = () => {
 
   useEffect(() => {
     if (error !== '') {
+      console.log("line - 54");
       setIsLoading(false); // אם יש שגיאה, הפסיקי את הטעינה
     }
   }, [error]);
@@ -58,19 +59,20 @@ const MedicalTranscription = () => {
   const closeModal = () => setIsModalOpen(false);
 
   const handleCleanText = async () => {
-    if (!sessionId) {
-      setError('No active session')
-      return
-    }
+    // if (!sessionId) {
+    //   setError('No active session')
+    //   return
+    // }
 
     try {
-      setIsProcessingAI(true)
+      // setIsProcessingAI(true)
 
       // Create a progress handler
       const handleProgress = progressText => {
         setTranscription(progressText)
       }
-      //const response = await cleanText(BUCKET_NAME,)
+      const cleanText = await cleanTranscribe(BUCKET_NAME, transcription)
+      setTranscription(cleanText)
 
       openModal()
       //  await aiAgentClean(sessionId, handleProgress)
@@ -78,7 +80,7 @@ const MedicalTranscription = () => {
       console.error('Error cleaning text:', error)
       setError('שגיאה בניקוי הטקסט')
     } finally {
-      setIsProcessingAI(false)
+      // setIsProcessingAI(false)
     }
   }
   const fileToBase64 = (file) => {
@@ -110,6 +112,7 @@ const MedicalTranscription = () => {
       debugger;
       const response = await summarize(BUCKET_NAME, '', transcription);
       setTranscription(response)
+      console.log("line - 116");
       setIsLoading(false);
 
     } catch (error) {
@@ -140,6 +143,7 @@ const MedicalTranscription = () => {
     }
   };
   const handleFileSelect = async event => {
+    setTranscription('');
     const file = event.target.files[0]
     if (!file) return
 
@@ -185,56 +189,55 @@ const MedicalTranscription = () => {
     setError('')
     if (file.type === 'text/plain') {
       await setContentFile(file)
+      console.log("line - 192");
       setIsLoading(false);
+      setUploadingFile(false)
+
 
     }
     else {
 
-    try {
-       const newSessionId = createSessionId()
-       setSessionId(newSessionId)
-      setIsLoading(true);
-      setAudioUrl(null);
+      try {
+        const newSessionId = createSessionId()
+        setSessionId(newSessionId)
+        setIsLoading(true);
+        setAudioUrl(null);
 
 
-      // Log file information for debugging
-      console.log('Uploading file:', {
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        extension: file.name.split('.').pop()
-      })
-      // let fileName = MEDIA_LOAD_FOLDER + file.name
-      const fileName = `${MEDIA_LOAD_FOLDER}audio_${file.name}`;
-      const fileBase64 = await fileToBase64(file) // הפיכת הקובץ ל-Base64
-      setAudioUrl(URL.createObjectURL(file));
-      const response = await uploadFile(BUCKET_NAME, fileName, fileBase64)
-      if (response) {
-        const res = await TranscribeFile(BUCKET_NAME, '', fileName, language, numSpeakers, TRANSCRIPTION_FOLDER)
-        if (res) {
-          setTranscribeFilePath(TRANSCRIPTION_FOLDER + res + '.json');
-          const response = await getFile(BUCKET_NAME, TRANSCRIPTION_FOLDER + res + '.json')
-          if (response) {
-            setTranscription(response);
+        // Log file information for debugging
+        console.log('Uploading file:', {
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          extension: file.name.split('.').pop()
+        })
+        // let fileName = MEDIA_LOAD_FOLDER + file.name
+        const fileName = `${MEDIA_LOAD_FOLDER}audio_${file.name}`;
+        const fileBase64 = await fileToBase64(file) // הפיכת הקובץ ל-Base64
+        setAudioUrl(URL.createObjectURL(file));
+        const response = await uploadFile(BUCKET_NAME, fileName, fileBase64)
+        if (response) {
+          const res = await TranscribeFile(BUCKET_NAME, '', fileName, language, numSpeakers, TRANSCRIPTION_FOLDER)
+          if (res) {
+            setTranscribeFilePath(TRANSCRIPTION_FOLDER + res + '.json');
+            const response = await getFile(BUCKET_NAME, TRANSCRIPTION_FOLDER + res + '.json')
+            if (response) {
+              setTranscription(response);
+            }
           }
         }
-      }
-      setUploadingFile(false)
-      setIsLoading(false);
-      setSelectedFileName(file.name)
+        setUploadingFile(false)
+        setSelectedFileName(file.name)
 
-      // Upload file to S3
-      //await S3Service.uploadMedia(file, newSessionId)
 
         // Clear file input
         if (fileInputRef.current) {
           fileInputRef.current.value = ''
         }
+        console.log("line - 237");
 
-        // console.log('Starting transcription polling for session:', newSessionId)
+        setIsLoading(false);
 
-        // Start loading the transcription
-        // await loadTranscription(newSessionId)
       } catch (error) {
         console.error('Error handling file:', error)
         setError('Failed to process file: ' + error.message)
@@ -278,8 +281,8 @@ const MedicalTranscription = () => {
     {
       const source = audioContextRef.current.createMediaStreamSource(stream);
       workletNodeRef.current = new AudioWorkletNode(
-          audioContextRef.current,
-          'audio-processor'
+        audioContextRef.current,
+        'audio-processor'
       );
 
       source.connect(workletNodeRef.current);
@@ -322,7 +325,7 @@ const MedicalTranscription = () => {
       })
 
       // Create MediaRecorder to save the audio
-      mediaRecorderRef.current = new MediaRecorder(stream, {mimeType: 'audio/webm;codecs=opus'})
+      mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'audio/webm;codecs=opus' })
       mediaRecorderRef.current.ondataavailable = event => {
         if (event.data.size > 0) {
           recordedChunksRef.current.push(event.data)
@@ -355,8 +358,8 @@ const MedicalTranscription = () => {
     setAudioUrl(null);
     try {
       if (
-          mediaRecorderRef.current &&
-          mediaRecorderRef.current.state !== 'inactive'
+        mediaRecorderRef.current &&
+        mediaRecorderRef.current.state !== 'inactive'
       ) {
         mediaRecorderRef.current.stop();
         await new Promise(resolve => {
@@ -389,10 +392,12 @@ const MedicalTranscription = () => {
                 }
               }
             }
+            console.log("line - 395");
             setIsLoading(false);
           } catch (error) {
             console.error('Error uploading file:', error);
             setError('Error uploading file: ' + error.message)
+            console.log("line - 400");
             setIsLoading(false);
           }
         };
@@ -401,7 +406,7 @@ const MedicalTranscription = () => {
     } catch (error) {
       console.error('Error saving recording:', error);
       setError('Failed to save recording: ' + error.message);
-      setIsLoading(false);
+
     } finally {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
@@ -461,20 +466,20 @@ const MedicalTranscription = () => {
           </div>
         )}
         {!uploadingFile && selectedFileName && (
-            <div
-                className='bg-[#0069361e] border border-[#006937] text-[#006937] px-4 py-3 rounded relative mb-4 text-right'
-                role='alert'
-            >
-              <span className='block sm:inline ' style={{direction: "rtl", display: "flex"}}>{`הקובץ שהועלה:  ${selectedFileName}`}</span>
-            </div>
+          <div
+            className='bg-[#0069361e] border border-[#006937] text-[#006937] px-4 py-3 rounded relative mb-4 text-right'
+            role='alert'
+          >
+            <span className='block sm:inline ' style={{ direction: "rtl", display: "flex" }}>{`הקובץ שהועלה:  ${selectedFileName}`}</span>
+          </div>
         )}
 
         <TranscriptionConfig
-            numSpeakers={numSpeakers}
-            setNumSpeakers={setNumSpeakers}
-            language={language}
-            setLanguage={setLanguage}
-            disabled={isRecording || isProcessing || uploadingFile}
+          numSpeakers={numSpeakers}
+          setNumSpeakers={setNumSpeakers}
+          language={language}
+          setLanguage={setLanguage}
+          disabled={isRecording || isProcessing || uploadingFile}
         />
 
         <div className='grid grid-cols-2 md:grid-cols-4 gap-4 bg-[#0069361e] rounded-lg mb-2'>
@@ -580,13 +585,12 @@ const MedicalTranscription = () => {
           </div>
         )}
         <LoaderButton
-            maxSeconds={30}
-            isLoading={isLoading}
+          isLoading={isLoading} onComplete={() => console.log("הטעינה הושלמה!")}
         />
-        {!isRecording && !isProcessing && !isLoading && audioUrl &&  (
+        {!isRecording && !isProcessing && !isLoading && audioUrl && (
           <AudioPlayer
-              duration={calculateDurationFromTimestamps(startTime, stopTime)}
-              audioUrl={audioUrl}
+            duration={calculateDurationFromTimestamps(startTime, stopTime)}
+            audioUrl={audioUrl}
           />
         )}
 
@@ -623,7 +627,7 @@ const MedicalTranscription = () => {
             ) : (
               <div className='flex items-center flex-row-reverse gap-10'>
                 <span>טיוב טקסט</span>
-                 <img src={iconWand} alt="wand" />
+                <img src={iconWand} alt="wand" />
               </div>
             )}
           </button>
@@ -672,15 +676,15 @@ const MedicalTranscription = () => {
             direction={language === 'he-IL' || language === 'ar-AE' ? 'rtl' : 'ltr'}
           />
         </div>
-        <Modal
-        isOpen={isModalOpen}
-        onClose={closeModal}
-        title="האם ברצונך לשלוח את הטיוב למייל?"
-      >
-        <p>הזן כתובת מייל</p>
-        <input className="w-full appearance-none rounded-md border border-gray-300 bg-white px-4 py-2 text-right text-gray-700 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200"
-        type="email" required="true" placeholder="example@domain.com" ></input>
-      </Modal>
+        {/* <Modal
+          isOpen={isModalOpen}
+          onClose={closeModal}
+          title="האם ברצונך לשלוח את הטיוב למייל?"
+        >
+          <p>הזן כתובת מייל</p>
+          <input className="w-full appearance-none rounded-md border border-gray-300 bg-white px-4 py-2 text-right text-gray-700 shadow-sm focus:border-green-500 focus:ring focus:ring-green-200"
+            type="email" required="true" placeholder="example@domain.com" ></input>
+        </Modal> */}
       </div>
     </div>
   )
