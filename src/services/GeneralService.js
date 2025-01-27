@@ -5,7 +5,7 @@ const BASE_URL = 'https://fzi6g8lot8.execute-api.us-east-1.amazonaws.com/dev/'
 
 export const uploadFile = async (bucketName, fileKey, fileData) => {
     try {
-        const response = await axios.post(`${BASE_URL}upload`, {
+        const response = await axios.post(`${BASE_URL}s3/upload`, {
             bucket_name: bucketName,
             file_key: fileKey,
             file_data: fileData
