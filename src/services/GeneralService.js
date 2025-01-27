@@ -1,6 +1,6 @@
 import axios from "axios";
-
-const BASE_URL = 'http://98.80.128.151:8000/api/v1/'
+const BASE_URL = 'https://fzi6g8lot8.execute-api.us-east-1.amazonaws.com/dev/'
+//const BASE_URL = 'http://98.80.128.151:8000/api/v1/'
 //const BASE_URL='https://98.80.128.151:8443/api/v1/'
 
 export const uploadFile = async (bucketName, fileKey, fileData) => {
